@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/gilangrmdnii/invoice-backend/internal/model"
 )
@@ -52,4 +54,32 @@ func (r *UserRepository) FindByID(ctx context.Context, id uint64) (*model.User, 
 		return nil, err
 	}
 	return user, nil
+}
+
+func (r *UserRepository) FindByRoles(ctx context.Context, roles []string) ([]model.User, error) {
+	if len(roles) == 0 {
+		return nil, nil
+	}
+	placeholders := make([]string, len(roles))
+	args := make([]interface{}, len(roles))
+	for i, role := range roles {
+		placeholders[i] = "?"
+		args[i] = role
+	}
+	query := fmt.Sprintf(`SELECT id, full_name, email, password, role, created_at, updated_at FROM users WHERE role IN (%s)`, strings.Join(placeholders, ","))
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []model.User
+	for rows.Next() {
+		var u model.User
+		if err := rows.Scan(&u.ID, &u.FullName, &u.Email, &u.Password, &u.Role, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
 }

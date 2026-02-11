@@ -5,28 +5,84 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/gilangrmdnii/invoice-backend/internal/dto/request"
 	"github.com/gilangrmdnii/invoice-backend/internal/dto/response"
 	"github.com/gilangrmdnii/invoice-backend/internal/model"
 	"github.com/gilangrmdnii/invoice-backend/internal/repository"
+	"github.com/gilangrmdnii/invoice-backend/internal/sse"
 )
 
 type BudgetRequestService struct {
 	budgetRequestRepo *repository.BudgetRequestRepository
 	projectRepo       *repository.ProjectRepository
 	memberRepo        *repository.ProjectMemberRepository
+	auditRepo         *repository.AuditLogRepository
+	notifRepo         *repository.NotificationRepository
+	userRepo          *repository.UserRepository
+	sseHub            *sse.Hub
 }
 
 func NewBudgetRequestService(
 	budgetRequestRepo *repository.BudgetRequestRepository,
 	projectRepo *repository.ProjectRepository,
 	memberRepo *repository.ProjectMemberRepository,
+	auditRepo *repository.AuditLogRepository,
+	notifRepo *repository.NotificationRepository,
+	userRepo *repository.UserRepository,
+	sseHub *sse.Hub,
 ) *BudgetRequestService {
 	return &BudgetRequestService{
 		budgetRequestRepo: budgetRequestRepo,
 		projectRepo:       projectRepo,
 		memberRepo:        memberRepo,
+		auditRepo:         auditRepo,
+		notifRepo:         notifRepo,
+		userRepo:          userRepo,
+		sseHub:            sseHub,
+	}
+}
+
+func (s *BudgetRequestService) logAudit(ctx context.Context, userID uint64, action, entityType string, entityID uint64, details string) {
+	_, err := s.auditRepo.Create(ctx, &model.AuditLog{
+		UserID:     userID,
+		Action:     action,
+		EntityType: entityType,
+		EntityID:   entityID,
+		Details:    details,
+	})
+	if err != nil {
+		log.Printf("audit log error: %v", err)
+	}
+}
+
+func (s *BudgetRequestService) notifyUser(ctx context.Context, userID uint64, title, message string, notifType model.NotificationType, refID uint64) {
+	id, err := s.notifRepo.Create(ctx, &model.Notification{
+		UserID:      userID,
+		Title:       title,
+		Message:     message,
+		Type:        notifType,
+		ReferenceID: &refID,
+	})
+	if err != nil {
+		log.Printf("notification error: %v", err)
+		return
+	}
+	s.sseHub.Publish(userID, sse.Event{
+		Type: string(notifType),
+		Data: map[string]interface{}{"id": id, "title": title, "message": message, "reference_id": refID},
+	})
+}
+
+func (s *BudgetRequestService) notifyRoles(ctx context.Context, roles []string, title, message string, notifType model.NotificationType, refID uint64) {
+	users, err := s.userRepo.FindByRoles(ctx, roles)
+	if err != nil {
+		log.Printf("find users by roles error: %v", err)
+		return
+	}
+	for _, u := range users {
+		s.notifyUser(ctx, u.ID, title, message, notifType, refID)
 	}
 }
 
@@ -63,6 +119,12 @@ func (s *BudgetRequestService) Create(ctx context.Context, req *request.CreateBu
 	if err != nil {
 		return nil, fmt.Errorf("create budget request: %w", err)
 	}
+
+	// Audit + Notification
+	s.logAudit(ctx, userID, "CREATE", "budget_request", id, fmt.Sprintf("amount=%.2f, reason=%s", br.Amount, br.Reason))
+	s.notifyRoles(ctx, []string{"FINANCE", "OWNER"}, "New Budget Request",
+		fmt.Sprintf("A budget request of %.2f has been submitted", br.Amount),
+		model.NotifBudgetRequest, id)
 
 	return &response.BudgetRequestResponse{
 		ID:          id,
@@ -119,6 +181,15 @@ func (s *BudgetRequestService) GetByID(ctx context.Context, id uint64) (*respons
 }
 
 func (s *BudgetRequestService) Approve(ctx context.Context, id, approvedBy uint64) (*response.BudgetRequestResponse, error) {
+	// Get before approve to know requester
+	br, err := s.budgetRequestRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("budget request not found")
+		}
+		return nil, err
+	}
+
 	if err := s.budgetRequestRepo.ApproveBudgetRequest(ctx, id, approvedBy); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("budget request not found")
@@ -129,15 +200,30 @@ func (s *BudgetRequestService) Approve(ctx context.Context, id, approvedBy uint6
 		return nil, fmt.Errorf("approve budget request: %w", err)
 	}
 
-	br, err := s.budgetRequestRepo.FindByID(ctx, id)
+	// Audit + Notification
+	s.logAudit(ctx, approvedBy, "APPROVE", "budget_request", id, "")
+	s.notifyUser(ctx, br.RequestedBy, "Budget Request Approved",
+		fmt.Sprintf("Your budget request of %.2f has been approved", br.Amount),
+		model.NotifBudgetApproved, id)
+
+	updated, err := s.budgetRequestRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	resp := toBudgetRequestResponse(br)
+	resp := toBudgetRequestResponse(updated)
 	return &resp, nil
 }
 
 func (s *BudgetRequestService) Reject(ctx context.Context, id, approvedBy uint64) (*response.BudgetRequestResponse, error) {
+	// Get before reject to know requester
+	br, err := s.budgetRequestRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("budget request not found")
+		}
+		return nil, err
+	}
+
 	if err := s.budgetRequestRepo.RejectBudgetRequest(ctx, id, approvedBy); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("budget request not found")
@@ -148,11 +234,17 @@ func (s *BudgetRequestService) Reject(ctx context.Context, id, approvedBy uint64
 		return nil, fmt.Errorf("reject budget request: %w", err)
 	}
 
-	br, err := s.budgetRequestRepo.FindByID(ctx, id)
+	// Audit + Notification
+	s.logAudit(ctx, approvedBy, "REJECT", "budget_request", id, "")
+	s.notifyUser(ctx, br.RequestedBy, "Budget Request Rejected",
+		fmt.Sprintf("Your budget request of %.2f has been rejected", br.Amount),
+		model.NotifBudgetRejected, id)
+
+	updated, err := s.budgetRequestRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	resp := toBudgetRequestResponse(br)
+	resp := toBudgetRequestResponse(updated)
 	return &resp, nil
 }
 

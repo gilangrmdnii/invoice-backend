@@ -9,9 +9,13 @@ import (
 	"github.com/gilangrmdnii/invoice-backend/internal/middleware"
 	"github.com/gilangrmdnii/invoice-backend/internal/repository"
 	"github.com/gilangrmdnii/invoice-backend/internal/service"
+	"github.com/gilangrmdnii/invoice-backend/internal/sse"
 )
 
 func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
+	// SSE Hub
+	sseHub := sse.NewHub()
+
 	// Repositories
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
@@ -19,18 +23,27 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	budgetRepo := repository.NewBudgetRepository(db)
 	expenseRepo := repository.NewExpenseRepository(db)
 	budgetRequestRepo := repository.NewBudgetRequestRepository(db)
+	auditLogRepo := repository.NewAuditLogRepository(db)
+	notifRepo := repository.NewNotificationRepository(db)
+	dashboardRepo := repository.NewDashboardRepository(db)
 
 	// Services
 	authService := service.NewAuthService(userRepo, cfg)
 	projectService := service.NewProjectService(projectRepo, memberRepo, budgetRepo, userRepo)
-	expenseService := service.NewExpenseService(expenseRepo, projectRepo, memberRepo)
-	budgetRequestService := service.NewBudgetRequestService(budgetRequestRepo, projectRepo, memberRepo)
+	expenseService := service.NewExpenseService(expenseRepo, projectRepo, memberRepo, auditLogRepo, notifRepo, userRepo, sseHub)
+	budgetRequestService := service.NewBudgetRequestService(budgetRequestRepo, projectRepo, memberRepo, auditLogRepo, notifRepo, userRepo, sseHub)
+	notifService := service.NewNotificationService(notifRepo)
+	dashboardService := service.NewDashboardService(dashboardRepo, projectRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService)
 	projectHandler := handler.NewProjectHandler(projectService)
 	expenseHandler := handler.NewExpenseHandler(expenseService)
 	budgetRequestHandler := handler.NewBudgetRequestHandler(budgetRequestService)
+	notifHandler := handler.NewNotificationHandler(notifService)
+	dashboardHandler := handler.NewDashboardHandler(dashboardService)
+	auditLogHandler := handler.NewAuditLogHandler(auditLogRepo)
+	sseHandler := handler.NewSSEHandler(sseHub)
 
 	api := app.Group("/api")
 
@@ -78,8 +91,19 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	budgetRequests.Post("/:id/approve", middleware.RequireRoles("FINANCE", "OWNER"), budgetRequestHandler.Approve)
 	budgetRequests.Post("/:id/reject", middleware.RequireRoles("FINANCE", "OWNER"), budgetRequestHandler.Reject)
 
-	// Future routes
-	// api.Get("/dashboard", ...)
-	// api.Get("/audit-logs", ...)
-	// api.Get("/events", ...)
+	// Dashboard
+	protected.Get("/dashboard", dashboardHandler.GetDashboard)
+
+	// Notifications
+	notifications := protected.Group("/notifications")
+	notifications.Get("", notifHandler.List)
+	notifications.Get("/unread-count", notifHandler.CountUnread)
+	notifications.Patch("/read-all", notifHandler.MarkAllAsRead)
+	notifications.Patch("/:id/read", notifHandler.MarkAsRead)
+
+	// Audit logs (FINANCE, OWNER only)
+	protected.Get("/audit-logs", middleware.RequireRoles("FINANCE", "OWNER"), auditLogHandler.List)
+
+	// SSE events
+	protected.Get("/events", sseHandler.Stream)
 }
