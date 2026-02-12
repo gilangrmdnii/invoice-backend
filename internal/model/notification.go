@@ -11,6 +11,7 @@ const (
 	NotifBudgetRequest   NotificationType = "BUDGET_REQUEST"
 	NotifBudgetApproved  NotificationType = "BUDGET_APPROVED"
 	NotifBudgetRejected  NotificationType = "BUDGET_REJECTED"
+	NotifInvoiceCreated  NotificationType = "INVOICE_CREATED"
 )
 
 type Notification struct {

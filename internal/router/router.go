@@ -2,6 +2,7 @@ package router
 
 import (
 	"database/sql"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gilangrmdnii/invoice-backend/internal/config"
@@ -16,6 +17,13 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	// SSE Hub
 	sseHub := sse.NewHub()
 
+	// Ensure uploads directory exists
+	uploadDir := "./uploads"
+	os.MkdirAll(uploadDir, 0755)
+
+	// Static file serving for uploads
+	app.Static("/uploads", uploadDir)
+
 	// Repositories
 	userRepo := repository.NewUserRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
@@ -26,14 +34,16 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	auditLogRepo := repository.NewAuditLogRepository(db)
 	notifRepo := repository.NewNotificationRepository(db)
 	dashboardRepo := repository.NewDashboardRepository(db)
+	invoiceRepo := repository.NewInvoiceRepository(db)
 
 	// Services
 	authService := service.NewAuthService(userRepo, cfg)
 	projectService := service.NewProjectService(projectRepo, memberRepo, budgetRepo, userRepo)
 	expenseService := service.NewExpenseService(expenseRepo, projectRepo, memberRepo, auditLogRepo, notifRepo, userRepo, sseHub)
-	budgetRequestService := service.NewBudgetRequestService(budgetRequestRepo, projectRepo, memberRepo, auditLogRepo, notifRepo, userRepo, sseHub)
+	budgetRequestService := service.NewBudgetRequestService(budgetRequestRepo, projectRepo, memberRepo, budgetRepo, auditLogRepo, notifRepo, userRepo, sseHub)
 	notifService := service.NewNotificationService(notifRepo)
 	dashboardService := service.NewDashboardService(dashboardRepo, projectRepo)
+	invoiceService := service.NewInvoiceService(invoiceRepo, projectRepo, memberRepo, auditLogRepo, notifRepo, userRepo, sseHub)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -44,6 +54,8 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	dashboardHandler := handler.NewDashboardHandler(dashboardService)
 	auditLogHandler := handler.NewAuditLogHandler(auditLogRepo)
 	sseHandler := handler.NewSSEHandler(sseHub)
+	uploadHandler := handler.NewUploadHandler(uploadDir)
+	invoiceHandler := handler.NewInvoiceHandler(invoiceService)
 
 	api := app.Group("/api")
 
@@ -62,6 +74,9 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 
 	// Protected routes
 	protected := api.Group("", middleware.AuthRequired(cfg.JWTSecret))
+
+	// File upload
+	protected.Post("/upload", uploadHandler.Upload)
 
 	// Project routes
 	projects := protected.Group("/projects")
@@ -90,6 +105,14 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	budgetRequests.Get("/:id", budgetRequestHandler.GetByID)
 	budgetRequests.Post("/:id/approve", middleware.RequireRoles("FINANCE", "OWNER"), budgetRequestHandler.Approve)
 	budgetRequests.Post("/:id/reject", middleware.RequireRoles("FINANCE", "OWNER"), budgetRequestHandler.Reject)
+
+	// Invoice routes (SPV only creates, all can view)
+	invoices := protected.Group("/invoices")
+	invoices.Post("", middleware.RequireRoles("SPV"), invoiceHandler.Create)
+	invoices.Get("", invoiceHandler.List)
+	invoices.Get("/:id", invoiceHandler.GetByID)
+	invoices.Put("/:id", middleware.RequireRoles("SPV"), invoiceHandler.Update)
+	invoices.Delete("/:id", middleware.RequireRoles("SPV"), invoiceHandler.Delete)
 
 	// Dashboard
 	protected.Get("/dashboard", dashboardHandler.GetDashboard)

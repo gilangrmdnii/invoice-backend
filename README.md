@@ -48,6 +48,7 @@ JWT_EXPIRY_HOURS=24
 ```bash
 mysql -u root -e "CREATE DATABASE IF NOT EXISTS invoice_db"
 mysql -u root invoice_db < migrations/000001_init_schema.sql
+mysql -u root invoice_db < migrations/000002_invoices.sql
 ```
 
 4. Install dependencies and run:
@@ -77,6 +78,7 @@ Server starts at `http://localhost:3000`.
 │   ├── service/            # Business logic
 │   └── sse/                # Server-Sent Events hub
 ├── migrations/             # SQL migration files
+├── uploads/                # Uploaded invoice files (gitignored)
 └── pkg/
     ├── jwt/                # JWT helper
     ├── response/           # Standard API response
@@ -87,8 +89,8 @@ Server starts at `http://localhost:3000`.
 
 | Role | Description |
 |------|-------------|
-| `SPV` | Supervisor — manages expenses within assigned projects |
-| `FINANCE` | Finance — approves/rejects expenses and budget requests, full visibility |
+| `SPV` | Supervisor — uploads invoices, manages expenses within assigned projects |
+| `FINANCE` | Finance — approves/rejects invoices, expenses, and budget requests |
 | `OWNER` | Owner — same privileges as FINANCE |
 
 ## API Endpoints
@@ -123,6 +125,23 @@ All protected endpoints require the header:
 Authorization: Bearer <token>
 ```
 
+### File Upload
+
+| Method | Path | Role Guard | Description |
+|--------|------|------------|-------------|
+| POST | `/api/upload` | All | Upload file (JPG, PNG, PDF, max 5MB) |
+
+Upload via `multipart/form-data` with field name `file`. Returns the file URL:
+```json
+{
+  "success": true,
+  "message": "file uploaded successfully",
+  "data": { "file_url": "/uploads/20260211-a3f2e1b4.jpg" }
+}
+```
+
+Uploaded files are served at `http://localhost:3000/uploads/<filename>`.
+
 ### Projects
 
 | Method | Path | Role Guard | Description |
@@ -134,6 +153,29 @@ Authorization: Bearer <token>
 | POST | `/api/projects/:id/members` | FINANCE, OWNER | Add member |
 | DELETE | `/api/projects/:id/members/:userId` | FINANCE, OWNER | Remove member |
 | GET | `/api/projects/:id/members` | All | List members |
+
+### Invoices
+
+| Method | Path | Role Guard | Description |
+|--------|------|------------|-------------|
+| POST | `/api/invoices` | SPV | Upload/create invoice |
+| GET | `/api/invoices` | All | List invoices (SPV: own projects only) |
+| GET | `/api/invoices/:id` | All | Get invoice by ID |
+| PUT | `/api/invoices/:id` | All | Update invoice (PENDING only) |
+| DELETE | `/api/invoices/:id` | All | Delete invoice (PENDING only) |
+| POST | `/api/invoices/:id/approve` | FINANCE, OWNER | Approve invoice |
+| POST | `/api/invoices/:id/reject` | FINANCE, OWNER | Reject invoice |
+
+**Create invoice** (SPV uploads file first via `/api/upload`, then creates invoice):
+```json
+{
+  "project_id": 1,
+  "amount": 5000000,
+  "file_url": "/uploads/20260211-a3f2e1b4.jpg"
+}
+```
+
+Invoice number is auto-generated (e.g., `INV-20260211-0001`).
 
 ### Expenses
 
@@ -172,7 +214,8 @@ Authorization: Bearer <token>
     "projects": { "total_projects": 5, "active_projects": 3 },
     "budget": { "total_budget": 100000, "total_spent": 45000, "remaining": 55000 },
     "expenses": { "total_expenses": 20, "pending_expenses": 5, "approved_expenses": 12, "rejected_expenses": 3, "total_amount": 60000 },
-    "budget_requests": { "total_requests": 8, "pending_requests": 2, "approved_requests": 5, "rejected_requests": 1, "total_amount": 50000 }
+    "budget_requests": { "total_requests": 8, "pending_requests": 2, "approved_requests": 5, "rejected_requests": 1, "total_amount": 50000 },
+    "invoices": { "total_invoices": 10, "pending_invoices": 3, "approved_invoices": 6, "rejected_invoices": 1, "total_amount": 75000 }
   }
 }
 ```
@@ -191,7 +234,7 @@ Authorization: Bearer <token>
 | Method | Path | Role Guard | Description |
 |--------|------|------------|-------------|
 | GET | `/api/audit-logs` | FINANCE, OWNER | List audit logs |
-| GET | `/api/audit-logs?entity_type=expense` | FINANCE, OWNER | Filter by entity type |
+| GET | `/api/audit-logs?entity_type=invoice` | FINANCE, OWNER | Filter by entity type |
 
 ### SSE (Server-Sent Events)
 
@@ -205,6 +248,7 @@ curl -N -H "Authorization: Bearer <token>" http://localhost:3000/api/events
 ```
 
 Events are pushed when:
+- An invoice is created, approved, or rejected
 - An expense is created, approved, or rejected
 - A budget request is created, approved, or rejected
 
@@ -224,6 +268,9 @@ All endpoints return a standard JSON format:
 
 | Type | Trigger | Recipients |
 |------|---------|------------|
+| `INVOICE_CREATED` | New invoice uploaded | FINANCE, OWNER |
+| `INVOICE_APPROVED` | Invoice approved | Invoice creator |
+| `INVOICE_REJECTED` | Invoice rejected | Invoice creator |
 | `EXPENSE_CREATED` | New expense submitted | FINANCE, OWNER |
 | `EXPENSE_APPROVED` | Expense approved | Expense creator |
 | `EXPENSE_REJECTED` | Expense rejected | Expense creator |
@@ -233,6 +280,6 @@ All endpoints return a standard JSON format:
 
 ## Database Schema
 
-Tables: `users`, `projects`, `project_members`, `project_budgets`, `expenses`, `expense_approvals`, `budget_requests`, `notifications`, `audit_logs`.
+Tables: `users`, `projects`, `project_members`, `project_budgets`, `invoices`, `expenses`, `expense_approvals`, `budget_requests`, `notifications`, `audit_logs`.
 
-See [`migrations/000001_init_schema.sql`](migrations/000001_init_schema.sql) for the full schema.
+See [`migrations/`](migrations/) for the full schema.

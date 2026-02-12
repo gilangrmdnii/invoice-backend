@@ -58,6 +58,11 @@ func (s *DashboardService) GetDashboard(ctx context.Context, userID uint64, role
 		return nil, err
 	}
 
+	invoiceSummary, err := s.dashboardRepo.GetInvoiceSummary(ctx, projectIDs)
+	if err != nil {
+		return nil, err
+	}
+
 	return &response.DashboardResponse{
 		Projects: response.ProjectSummary{
 			TotalProjects:  projectSummary.TotalProjects,
@@ -81,6 +86,10 @@ func (s *DashboardService) GetDashboard(ctx context.Context, userID uint64, role
 			ApprovedRequests: budgetRequestSummary.ApprovedRequests,
 			RejectedRequests: budgetRequestSummary.RejectedRequests,
 			TotalAmount:      budgetRequestSummary.TotalAmount,
+		},
+		Invoices: response.InvoiceSummary{
+			TotalInvoices: invoiceSummary.TotalInvoices,
+			TotalAmount:   invoiceSummary.TotalAmount,
 		},
 	}, nil
 }

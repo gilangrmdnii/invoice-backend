@@ -33,6 +33,11 @@ type BudgetRequestSummaryRow struct {
 	TotalAmount      float64
 }
 
+type InvoiceSummaryRow struct {
+	TotalInvoices int64
+	TotalAmount   float64
+}
+
 type DashboardRepository struct {
 	db *sql.DB
 }
@@ -149,5 +154,25 @@ func (r *DashboardRepository) GetBudgetRequestSummary(ctx context.Context, proje
 	row.PendingRequests = pending.Int64
 	row.ApprovedRequests = approved.Int64
 	row.RejectedRequests = rejected.Int64
+	return row, nil
+}
+
+func (r *DashboardRepository) GetInvoiceSummary(ctx context.Context, projectIDs []uint64) (*InvoiceSummaryRow, error) {
+	var query string
+	var args []interface{}
+
+	if len(projectIDs) > 0 {
+		placeholders, pArgs := buildInClause(projectIDs)
+		query = fmt.Sprintf(`SELECT COUNT(1), COALESCE(SUM(amount),0) FROM invoices WHERE project_id IN (%s)`, placeholders)
+		args = pArgs
+	} else {
+		query = `SELECT COUNT(1), COALESCE(SUM(amount),0) FROM invoices`
+	}
+
+	row := &InvoiceSummaryRow{}
+	err := r.db.QueryRowContext(ctx, query, args...).Scan(&row.TotalInvoices, &row.TotalAmount)
+	if err != nil {
+		return nil, err
+	}
 	return row, nil
 }

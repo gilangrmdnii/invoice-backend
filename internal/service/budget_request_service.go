@@ -18,6 +18,7 @@ type BudgetRequestService struct {
 	budgetRequestRepo *repository.BudgetRequestRepository
 	projectRepo       *repository.ProjectRepository
 	memberRepo        *repository.ProjectMemberRepository
+	budgetRepo        *repository.BudgetRepository
 	auditRepo         *repository.AuditLogRepository
 	notifRepo         *repository.NotificationRepository
 	userRepo          *repository.UserRepository
@@ -28,6 +29,7 @@ func NewBudgetRequestService(
 	budgetRequestRepo *repository.BudgetRequestRepository,
 	projectRepo *repository.ProjectRepository,
 	memberRepo *repository.ProjectMemberRepository,
+	budgetRepo *repository.BudgetRepository,
 	auditRepo *repository.AuditLogRepository,
 	notifRepo *repository.NotificationRepository,
 	userRepo *repository.UserRepository,
@@ -37,6 +39,7 @@ func NewBudgetRequestService(
 		budgetRequestRepo: budgetRequestRepo,
 		projectRepo:       projectRepo,
 		memberRepo:        memberRepo,
+		budgetRepo:        budgetRepo,
 		auditRepo:         auditRepo,
 		notifRepo:         notifRepo,
 		userRepo:          userRepo,
@@ -105,6 +108,18 @@ func (s *BudgetRequestService) Create(ctx context.Context, req *request.CreateBu
 		if !isMember {
 			return nil, fmt.Errorf("not a member of this project")
 		}
+	}
+
+	// Budget request only allowed when project budget is depleted
+	budget, err := s.budgetRepo.FindByProjectID(ctx, req.ProjectID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("project has no budget configured")
+		}
+		return nil, err
+	}
+	if budget.SpentAmount < budget.TotalBudget {
+		return nil, fmt.Errorf("budget is not yet depleted (remaining: %.2f)", budget.TotalBudget-budget.SpentAmount)
 	}
 
 	br := &model.BudgetRequest{

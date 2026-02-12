@@ -5,6 +5,7 @@ type DashboardResponse struct {
 	Budget         BudgetSummary        `json:"budget"`
 	Expenses       ExpenseSummary       `json:"expenses"`
 	BudgetRequests BudgetRequestSummary `json:"budget_requests"`
+	Invoices       InvoiceSummary       `json:"invoices"`
 }
 
 type ProjectSummary struct {
@@ -32,4 +33,9 @@ type BudgetRequestSummary struct {
 	ApprovedRequests int64   `json:"approved_requests"`
 	RejectedRequests int64   `json:"rejected_requests"`
 	TotalAmount      float64 `json:"total_amount"`
+}
+
+type InvoiceSummary struct {
+	TotalInvoices int64   `json:"total_invoices"`
+	TotalAmount   float64 `json:"total_amount"`
 }

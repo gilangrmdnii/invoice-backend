@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"encoding/json"
 
 	"github.com/gilangrmdnii/invoice-backend/internal/model"
 )
@@ -20,7 +20,9 @@ func (r *AuditLogRepository) Create(ctx context.Context, log *model.AuditLog) (u
 	query := `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)`
 	var details interface{}
 	if log.Details != "" {
-		details = log.Details
+		// MySQL JSON column requires valid JSON; encode the string as a JSON string value
+		b, _ := json.Marshal(log.Details)
+		details = string(b)
 	}
 	result, err := r.db.ExecContext(ctx, query, log.UserID, log.Action, log.EntityType, log.EntityID, details)
 	if err != nil {
@@ -45,7 +47,7 @@ func (r *AuditLogRepository) FindAll(ctx context.Context) ([]model.AuditLog, err
 }
 
 func (r *AuditLogRepository) FindByEntityType(ctx context.Context, entityType string) ([]model.AuditLog, error) {
-	query := fmt.Sprintf(`SELECT id, user_id, action, entity_type, entity_id, details, created_at FROM audit_logs WHERE entity_type = ? ORDER BY created_at DESC`)
+	query := `SELECT id, user_id, action, entity_type, entity_id, details, created_at FROM audit_logs WHERE entity_type = ? ORDER BY created_at DESC`
 	rows, err := r.db.QueryContext(ctx, query, entityType)
 	if err != nil {
 		return nil, err
@@ -64,7 +66,13 @@ func scanAuditLogs(rows *sql.Rows) ([]model.AuditLog, error) {
 			return nil, err
 		}
 		if details.Valid {
-			l.Details = details.String
+			// MySQL JSON column wraps strings in quotes; try to unwrap
+			var s string
+			if err := json.Unmarshal([]byte(details.String), &s); err == nil {
+				l.Details = s
+			} else {
+				l.Details = details.String
+			}
 		}
 		logs = append(logs, l)
 	}
