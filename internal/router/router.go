@@ -56,6 +56,7 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	sseHandler := handler.NewSSEHandler(sseHub)
 	uploadHandler := handler.NewUploadHandler(uploadDir)
 	invoiceHandler := handler.NewInvoiceHandler(invoiceService)
+	userHandler := handler.NewUserHandler(userRepo)
 
 	api := app.Group("/api")
 
@@ -77,6 +78,9 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 
 	// File upload
 	protected.Post("/upload", uploadHandler.Upload)
+
+	// Users
+	protected.Get("/users", userHandler.List)
 
 	// Project routes
 	projects := protected.Group("/projects")

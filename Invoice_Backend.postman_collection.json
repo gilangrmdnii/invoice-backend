@@ -1,0 +1,716 @@
+{
+	"info": {
+		"_postman_id": "invoice-backend-collection",
+		"name": "Invoice Backend API",
+		"description": "Complete API collection for Invoice Backend.\n\n**Roles:** SPV, FINANCE, OWNER\n\n**Auth:** JWT Bearer token via Authorization header.\n\n**Flow:**\n1. Register user\n2. Login → get token (auto-saved)\n3. Use protected endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [""]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3001/api",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Register",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"full_name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"SPV\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "register"]
+						},
+						"description": "Register a new user.\n\n**Roles:** SPV, FINANCE, OWNER\n\n**Validation:**\n- full_name: required, min 2, max 255\n- email: required, valid email\n- password: required, min 6\n- role: required, one of SPV/FINANCE/OWNER"
+					}
+				},
+				{
+					"name": "Register (FINANCE)",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"full_name\": \"Finance User\",\n  \"email\": \"finance@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"FINANCE\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Register (OWNER)",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"full_name\": \"Owner User\",\n  \"email\": \"owner@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"OWNER\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.success && jsonData.data && jsonData.data.token) {",
+									"    pm.collectionVariables.set('token', jsonData.data.token);",
+									"    console.log('Token saved!');",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "login"]
+						},
+						"description": "Login and get JWT token.\n\nToken is **auto-saved** to collection variable `token` via test script."
+					}
+				}
+			]
+		},
+		{
+			"name": "Projects",
+			"item": [
+				{
+					"name": "Create Project",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Website Redesign\",\n  \"description\": \"Complete website redesign project\",\n  \"total_budget\": 50000000\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/projects",
+							"host": ["{{base_url}}"],
+							"path": ["projects"]
+						},
+						"description": "Create a new project.\n\n**Roles:** FINANCE, OWNER only\n\n**Validation:**\n- name: required, min 2, max 255\n- description: max 1000\n- total_budget: required, > 0"
+					}
+				},
+				{
+					"name": "List Projects",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/projects",
+							"host": ["{{base_url}}"],
+							"path": ["projects"]
+						},
+						"description": "List all projects. SPV sees only projects they are a member of."
+					}
+				},
+				{
+					"name": "Get Project by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/projects/1",
+							"host": ["{{base_url}}"],
+							"path": ["projects", "1"]
+						}
+					}
+				},
+				{
+					"name": "Update Project",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Website Redesign v2\",\n  \"description\": \"Updated description\",\n  \"status\": \"ACTIVE\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/projects/1",
+							"host": ["{{base_url}}"],
+							"path": ["projects", "1"]
+						},
+						"description": "Update project.\n\n**Roles:** FINANCE, OWNER only\n\n**Status options:** ACTIVE, COMPLETED, ARCHIVED"
+					}
+				},
+				{
+					"name": "Add Member to Project",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": 1\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/projects/1/members",
+							"host": ["{{base_url}}"],
+							"path": ["projects", "1", "members"]
+						},
+						"description": "Add a user as member to the project.\n\n**Roles:** FINANCE, OWNER only"
+					}
+				},
+				{
+					"name": "List Project Members",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/projects/1/members",
+							"host": ["{{base_url}}"],
+							"path": ["projects", "1", "members"]
+						}
+					}
+				},
+				{
+					"name": "Remove Member from Project",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/projects/1/members/2",
+							"host": ["{{base_url}}"],
+							"path": ["projects", "1", "members", "2"]
+						},
+						"description": "Remove a user from the project.\n\n**Roles:** FINANCE, OWNER only"
+					}
+				}
+			]
+		},
+		{
+			"name": "Expenses",
+			"item": [
+				{
+					"name": "Create Expense",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"project_id\": 1,\n  \"description\": \"Office supplies\",\n  \"amount\": 500000,\n  \"category\": \"Supplies\",\n  \"receipt_url\": \"/uploads/20260212-abc123.jpg\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/expenses",
+							"host": ["{{base_url}}"],
+							"path": ["expenses"]
+						},
+						"description": "Create a new expense.\n\n**Validation:**\n- project_id: required\n- description: required, min 2, max 1000\n- amount: required, > 0\n- category: required, max 255\n- receipt_url: optional, valid URL, max 500"
+					}
+				},
+				{
+					"name": "List Expenses",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/expenses",
+							"host": ["{{base_url}}"],
+							"path": ["expenses"]
+						},
+						"description": "List expenses. SPV sees only expenses from their projects."
+					}
+				},
+				{
+					"name": "Get Expense by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/expenses/1",
+							"host": ["{{base_url}}"],
+							"path": ["expenses", "1"]
+						}
+					}
+				},
+				{
+					"name": "Update Expense",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"description\": \"Updated office supplies\",\n  \"amount\": 750000,\n  \"category\": \"Office\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/expenses/1",
+							"host": ["{{base_url}}"],
+							"path": ["expenses", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Expense",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/expenses/1",
+							"host": ["{{base_url}}"],
+							"path": ["expenses", "1"]
+						}
+					}
+				},
+				{
+					"name": "Approve Expense",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"notes\": \"Approved, looks good\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/expenses/1/approve",
+							"host": ["{{base_url}}"],
+							"path": ["expenses", "1", "approve"]
+						},
+						"description": "Approve an expense.\n\n**Roles:** FINANCE, OWNER only\n\n**Notes:** optional, max 1000 chars"
+					}
+				},
+				{
+					"name": "Reject Expense",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"notes\": \"Rejected, amount too high\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/expenses/1/reject",
+							"host": ["{{base_url}}"],
+							"path": ["expenses", "1", "reject"]
+						},
+						"description": "Reject an expense.\n\n**Roles:** FINANCE, OWNER only"
+					}
+				}
+			]
+		},
+		{
+			"name": "Budget Requests",
+			"item": [
+				{
+					"name": "Create Budget Request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"project_id\": 1,\n  \"amount\": 10000000,\n  \"reason\": \"Budget habis, butuh tambahan untuk material\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/budget-requests",
+							"host": ["{{base_url}}"],
+							"path": ["budget-requests"]
+						},
+						"description": "Create a budget request.\n\n**IMPORTANT:** Only allowed when project budget is depleted (spent >= total). Will return error if budget still available.\n\n**Validation:**\n- project_id: required\n- amount: required, > 0\n- reason: required, min 2, max 1000"
+					}
+				},
+				{
+					"name": "List Budget Requests",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/budget-requests",
+							"host": ["{{base_url}}"],
+							"path": ["budget-requests"]
+						}
+					}
+				},
+				{
+					"name": "Get Budget Request by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/budget-requests/1",
+							"host": ["{{base_url}}"],
+							"path": ["budget-requests", "1"]
+						}
+					}
+				},
+				{
+					"name": "Approve Budget Request",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/budget-requests/1/approve",
+							"host": ["{{base_url}}"],
+							"path": ["budget-requests", "1", "approve"]
+						},
+						"description": "Approve a budget request.\n\n**Roles:** FINANCE, OWNER only\n\nThis will add the requested amount to the project's total budget."
+					}
+				},
+				{
+					"name": "Reject Budget Request",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/budget-requests/1/reject",
+							"host": ["{{base_url}}"],
+							"path": ["budget-requests", "1", "reject"]
+						},
+						"description": "Reject a budget request.\n\n**Roles:** FINANCE, OWNER only"
+					}
+				}
+			]
+		},
+		{
+			"name": "Invoices",
+			"item": [
+				{
+					"name": "Create Invoice",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"project_id\": 1,\n  \"amount\": 5000000,\n  \"file_url\": \"/uploads/20260212-invoice.jpg\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/invoices",
+							"host": ["{{base_url}}"],
+							"path": ["invoices"]
+						},
+						"description": "Create a new invoice. Upload file first via /upload, then use the returned file_url.\n\n**Roles:** SPV only\n\n**Validation:**\n- project_id: required\n- amount: required, > 0\n- file_url: required, max 500\n\nInvoice number is auto-generated (INV-YYYYMMDD-NNNN)."
+					}
+				},
+				{
+					"name": "List Invoices",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/invoices",
+							"host": ["{{base_url}}"],
+							"path": ["invoices"]
+						},
+						"description": "List all invoices. SPV sees only invoices from their projects."
+					}
+				},
+				{
+					"name": "Get Invoice by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/invoices/1",
+							"host": ["{{base_url}}"],
+							"path": ["invoices", "1"]
+						}
+					}
+				},
+				{
+					"name": "Update Invoice",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 5500000,\n  \"file_url\": \"/uploads/20260212-updated.jpg\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/invoices/1",
+							"host": ["{{base_url}}"],
+							"path": ["invoices", "1"]
+						},
+						"description": "Update an invoice.\n\n**Roles:** SPV only"
+					}
+				},
+				{
+					"name": "Delete Invoice",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/invoices/1",
+							"host": ["{{base_url}}"],
+							"path": ["invoices", "1"]
+						},
+						"description": "Delete an invoice.\n\n**Roles:** SPV only"
+					}
+				}
+			]
+		},
+		{
+			"name": "Upload",
+			"item": [
+				{
+					"name": "Upload File",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "",
+									"description": "File to upload (JPG, JPEG, PNG, PDF). Max 5MB."
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload",
+							"host": ["{{base_url}}"],
+							"path": ["upload"]
+						},
+						"description": "Upload a file (image/PDF).\n\n**Accepted types:** .jpg, .jpeg, .png, .pdf\n**Max size:** 5MB\n**Form field:** file\n\nReturns `file_url` to use in invoice or expense receipt_url."
+					}
+				}
+			]
+		},
+		{
+			"name": "Dashboard",
+			"item": [
+				{
+					"name": "Get Dashboard",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/dashboard",
+							"host": ["{{base_url}}"],
+							"path": ["dashboard"]
+						},
+						"description": "Get dashboard summary.\n\nReturns: projects, budget, expenses, budget_requests, invoices summary.\n\nSPV sees only data from projects they are a member of. FINANCE/OWNER sees all."
+					}
+				}
+			]
+		},
+		{
+			"name": "Notifications",
+			"item": [
+				{
+					"name": "List Notifications",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/notifications",
+							"host": ["{{base_url}}"],
+							"path": ["notifications"]
+						},
+						"description": "List all notifications for the current user."
+					}
+				},
+				{
+					"name": "Get Unread Count",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/notifications/unread-count",
+							"host": ["{{base_url}}"],
+							"path": ["notifications", "unread-count"]
+						},
+						"description": "Get count of unread notifications."
+					}
+				},
+				{
+					"name": "Mark Notification as Read",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/notifications/1/read",
+							"host": ["{{base_url}}"],
+							"path": ["notifications", "1", "read"]
+						},
+						"description": "Mark a single notification as read."
+					}
+				},
+				{
+					"name": "Mark All as Read",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/notifications/read-all",
+							"host": ["{{base_url}}"],
+							"path": ["notifications", "read-all"]
+						},
+						"description": "Mark all notifications as read for the current user."
+					}
+				}
+			]
+		},
+		{
+			"name": "Audit Logs",
+			"item": [
+				{
+					"name": "List Audit Logs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/audit-logs",
+							"host": ["{{base_url}}"],
+							"path": ["audit-logs"]
+						},
+						"description": "List all audit logs.\n\n**Roles:** FINANCE, OWNER only"
+					}
+				},
+				{
+					"name": "List Audit Logs by Entity Type",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/audit-logs?entity_type=expense",
+							"host": ["{{base_url}}"],
+							"path": ["audit-logs"],
+							"query": [
+								{
+									"key": "entity_type",
+									"value": "expense",
+									"description": "Filter by entity type: expense, budget_request, invoice"
+								}
+							]
+						},
+						"description": "List audit logs filtered by entity type.\n\n**Roles:** FINANCE, OWNER only"
+					}
+				}
+			]
+		},
+		{
+			"name": "SSE Events",
+			"item": [
+				{
+					"name": "Stream Events",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "text/event-stream" }
+						],
+						"url": {
+							"raw": "{{base_url}}/events",
+							"host": ["{{base_url}}"],
+							"path": ["events"]
+						},
+						"description": "Server-Sent Events stream for real-time notifications.\n\n**Note:** This is a persistent connection. Postman may not render SSE properly — use browser or EventSource in JS.\n\n**Events:**\n- connected\n- expense_created\n- expense_approved\n- expense_rejected\n- budget_request\n- budget_approved\n- budget_rejected\n- invoice_created\n\n**Format:**\n```\nevent: <type>\ndata: {\"json\": \"payload\"}\n```"
+					}
+				}
+			]
+		}
+	]
+}
