@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -35,8 +36,13 @@ func main() {
 
 	router.SetupRoutes(app, db, cfg)
 
-	log.Printf("server starting on port %s", cfg.AppPort)
-	if err := app.Listen(":" + cfg.AppPort); err != nil {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = cfg.AppPort
+	}
+
+	log.Printf("server starting on port %s", port)
+	if err := app.Listen(":" + port); err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}
 }
