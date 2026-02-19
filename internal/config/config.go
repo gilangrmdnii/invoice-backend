@@ -19,7 +19,9 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	_ = godotenv.Load()
+	if os.Getenv("RAILWAY_ENVIRONMENT") == "" {
+		_ = godotenv.Load()
+	}
 
 	expiryHrs, _ := strconv.Atoi(getEnv("JWT_EXPIRY_HOURS", "24"))
 
