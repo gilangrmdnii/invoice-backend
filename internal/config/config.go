@@ -20,7 +20,7 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	if os.Getenv("RAILWAY_ENVIRONMENT") == "" {
+	if os.Getenv("PORT") == "" {
 		_ = godotenv.Load()
 	}
 
@@ -32,7 +32,7 @@ func Load() (*Config, error) {
 		DBPort:       getEnvMulti([]string{"DB_PORT", "MYSQLPORT"}, "3306"),
 		DBUser:       getEnvMulti([]string{"DB_USER", "MYSQLUSER"}, "root"),
 		DBPassword:   getEnvMulti([]string{"DB_PASSWORD", "MYSQLPASSWORD"}, ""),
-		DBName:       getEnvMulti([]string{"DB_NAME", "MYSQLDATABASE"}, "invoice_db"),
+		DBName:       getEnvMulti([]string{"DB_NAME", "MYSQL_DATABASE"}, "invoice_db"),
 		DBURL:        getEnv("MYSQL_URL", ""),
 		JWTSecret:    getEnv("JWT_SECRET", ""),
 		JWTExpiryHrs: expiryHrs,
