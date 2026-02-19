@@ -35,6 +35,8 @@ func (h *InvoiceHandler) Create(c *fiber.Ctx) error {
 			return response.Error(c, fiber.StatusNotFound, err.Error())
 		case "not a member of this project":
 			return response.Error(c, fiber.StatusForbidden, err.Error())
+		case "invalid invoice date format, use YYYY-MM-DD":
+			return response.Error(c, fiber.StatusBadRequest, err.Error())
 		}
 		return response.Error(c, fiber.StatusInternalServerError, "failed to create invoice")
 	}
@@ -91,6 +93,8 @@ func (h *InvoiceHandler) Update(c *fiber.Ctx) error {
 			return response.Error(c, fiber.StatusNotFound, err.Error())
 		case "not authorized to update this invoice":
 			return response.Error(c, fiber.StatusForbidden, err.Error())
+		case "only pending invoices can be updated":
+			return response.Error(c, fiber.StatusBadRequest, err.Error())
 		}
 		return response.Error(c, fiber.StatusInternalServerError, "failed to update invoice")
 	}
@@ -112,9 +116,65 @@ func (h *InvoiceHandler) Delete(c *fiber.Ctx) error {
 			return response.Error(c, fiber.StatusNotFound, err.Error())
 		case "not authorized to delete this invoice":
 			return response.Error(c, fiber.StatusForbidden, err.Error())
+		case "only pending invoices can be deleted":
+			return response.Error(c, fiber.StatusBadRequest, err.Error())
 		}
 		return response.Error(c, fiber.StatusInternalServerError, "failed to delete invoice")
 	}
 
 	return response.Success(c, fiber.StatusOK, "invoice deleted successfully", nil)
+}
+
+func (h *InvoiceHandler) Approve(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "invalid invoice id")
+	}
+
+	var req request.ApproveInvoiceRequest
+	if err := validator.ParseAndValidate(c, &req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	userID := middleware.GetUserID(c)
+
+	result, err := h.invoiceService.Approve(c.Context(), id, userID, req.Notes)
+	if err != nil {
+		switch err.Error() {
+		case "invoice not found":
+			return response.Error(c, fiber.StatusNotFound, err.Error())
+		case "invoice is not pending":
+			return response.Error(c, fiber.StatusBadRequest, err.Error())
+		}
+		return response.Error(c, fiber.StatusInternalServerError, "failed to approve invoice")
+	}
+
+	return response.Success(c, fiber.StatusOK, "invoice approved successfully", result)
+}
+
+func (h *InvoiceHandler) Reject(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "invalid invoice id")
+	}
+
+	var req request.RejectInvoiceRequest
+	if err := validator.ParseAndValidate(c, &req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	userID := middleware.GetUserID(c)
+
+	result, err := h.invoiceService.Reject(c.Context(), id, userID, req.Notes)
+	if err != nil {
+		switch err.Error() {
+		case "invoice not found":
+			return response.Error(c, fiber.StatusNotFound, err.Error())
+		case "invoice is not pending":
+			return response.Error(c, fiber.StatusBadRequest, err.Error())
+		}
+		return response.Error(c, fiber.StatusInternalServerError, "failed to reject invoice")
+	}
+
+	return response.Success(c, fiber.StatusOK, "invoice rejected successfully", result)
 }

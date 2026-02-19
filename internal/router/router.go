@@ -35,6 +35,7 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	notifRepo := repository.NewNotificationRepository(db)
 	dashboardRepo := repository.NewDashboardRepository(db)
 	invoiceRepo := repository.NewInvoiceRepository(db)
+	companySettingsRepo := repository.NewCompanySettingsRepository(db)
 
 	// Services
 	authService := service.NewAuthService(userRepo, cfg)
@@ -44,6 +45,7 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	notifService := service.NewNotificationService(notifRepo)
 	dashboardService := service.NewDashboardService(dashboardRepo, projectRepo)
 	invoiceService := service.NewInvoiceService(invoiceRepo, projectRepo, memberRepo, auditLogRepo, notifRepo, userRepo, sseHub)
+	companySettingsService := service.NewCompanySettingsService(companySettingsRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -57,6 +59,7 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	uploadHandler := handler.NewUploadHandler(uploadDir)
 	invoiceHandler := handler.NewInvoiceHandler(invoiceService)
 	userHandler := handler.NewUserHandler(userRepo)
+	companySettingsHandler := handler.NewCompanySettingsHandler(companySettingsService)
 
 	api := app.Group("/api")
 
@@ -110,13 +113,20 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	budgetRequests.Post("/:id/approve", middleware.RequireRoles("FINANCE", "OWNER"), budgetRequestHandler.Approve)
 	budgetRequests.Post("/:id/reject", middleware.RequireRoles("FINANCE", "OWNER"), budgetRequestHandler.Reject)
 
-	// Invoice routes (SPV only creates, all can view)
+	// Invoice routes
 	invoices := protected.Group("/invoices")
 	invoices.Post("", middleware.RequireRoles("SPV"), invoiceHandler.Create)
 	invoices.Get("", invoiceHandler.List)
 	invoices.Get("/:id", invoiceHandler.GetByID)
 	invoices.Put("/:id", middleware.RequireRoles("SPV"), invoiceHandler.Update)
 	invoices.Delete("/:id", middleware.RequireRoles("SPV"), invoiceHandler.Delete)
+	invoices.Post("/:id/approve", middleware.RequireRoles("FINANCE", "OWNER"), invoiceHandler.Approve)
+	invoices.Post("/:id/reject", middleware.RequireRoles("FINANCE", "OWNER"), invoiceHandler.Reject)
+
+	// Company settings (FINANCE, OWNER only)
+	companySettings := protected.Group("/company-settings")
+	companySettings.Get("", companySettingsHandler.Get)
+	companySettings.Put("", middleware.RequireRoles("FINANCE", "OWNER"), companySettingsHandler.Upsert)
 
 	// Dashboard
 	protected.Get("/dashboard", dashboardHandler.GetDashboard)
