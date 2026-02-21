@@ -63,15 +63,43 @@ func (r *InvoiceRepository) Create(ctx context.Context, inv *model.Invoice, item
 	}
 	inv.InvoiceNumber = invoiceNumber
 
-	// Insert invoice items
+	// Insert invoice items (labels first, then children)
 	for i, item := range items {
-		_, err = tx.ExecContext(ctx,
-			`INSERT INTO invoice_items (invoice_id, description, quantity, unit, unit_price, subtotal, sort_order)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			id, item.Description, item.Quantity, item.Unit, item.UnitPrice, item.Subtotal, i,
-		)
-		if err != nil {
-			return 0, fmt.Errorf("insert invoice item: %w", err)
+		if item.IsLabel {
+			// Insert label row
+			labelResult, err := tx.ExecContext(ctx,
+				`INSERT INTO invoice_items (invoice_id, parent_id, is_label, description, quantity, unit, unit_price, subtotal, sort_order)
+				VALUES (?, NULL, TRUE, ?, 0, '', 0, 0, ?)`,
+				id, item.Description, i,
+			)
+			if err != nil {
+				return 0, fmt.Errorf("insert invoice label: %w", err)
+			}
+			labelID, err := labelResult.LastInsertId()
+			if err != nil {
+				return 0, fmt.Errorf("get label id: %w", err)
+			}
+			// Insert children for this label
+			for j, child := range item.Children {
+				_, err = tx.ExecContext(ctx,
+					`INSERT INTO invoice_items (invoice_id, parent_id, is_label, description, quantity, unit, unit_price, subtotal, sort_order)
+					VALUES (?, ?, FALSE, ?, ?, ?, ?, ?, ?)`,
+					id, labelID, child.Description, child.Quantity, child.Unit, child.UnitPrice, child.Subtotal, j,
+				)
+				if err != nil {
+					return 0, fmt.Errorf("insert invoice item under label: %w", err)
+				}
+			}
+		} else {
+			// Standalone item (no label parent)
+			_, err = tx.ExecContext(ctx,
+				`INSERT INTO invoice_items (invoice_id, parent_id, is_label, description, quantity, unit, unit_price, subtotal, sort_order)
+				VALUES (?, NULL, FALSE, ?, ?, ?, ?, ?, ?)`,
+				id, item.Description, item.Quantity, item.Unit, item.UnitPrice, item.Subtotal, i,
+			)
+			if err != nil {
+				return 0, fmt.Errorf("insert invoice item: %w", err)
+			}
 		}
 	}
 
@@ -156,7 +184,7 @@ func (r *InvoiceRepository) FindByProjectIDs(ctx context.Context, projectIDs []u
 }
 
 func (r *InvoiceRepository) FindItemsByInvoiceID(ctx context.Context, invoiceID uint64) ([]model.InvoiceItem, error) {
-	query := `SELECT id, invoice_id, description, quantity, unit, unit_price, subtotal, sort_order, created_at
+	query := `SELECT id, invoice_id, parent_id, is_label, description, quantity, unit, unit_price, subtotal, sort_order, created_at
 	FROM invoice_items WHERE invoice_id = ? ORDER BY sort_order ASC`
 
 	rows, err := r.db.QueryContext(ctx, query, invoiceID)
@@ -168,9 +196,14 @@ func (r *InvoiceRepository) FindItemsByInvoiceID(ctx context.Context, invoiceID 
 	var items []model.InvoiceItem
 	for rows.Next() {
 		var item model.InvoiceItem
-		if err := rows.Scan(&item.ID, &item.InvoiceID, &item.Description, &item.Quantity,
+		var parentID sql.NullInt64
+		if err := rows.Scan(&item.ID, &item.InvoiceID, &parentID, &item.IsLabel, &item.Description, &item.Quantity,
 			&item.Unit, &item.UnitPrice, &item.Subtotal, &item.SortOrder, &item.CreatedAt); err != nil {
 			return nil, err
+		}
+		if parentID.Valid {
+			v := uint64(parentID.Int64)
+			item.ParentID = &v
 		}
 		items = append(items, item)
 	}
@@ -205,13 +238,38 @@ func (r *InvoiceRepository) Update(ctx context.Context, inv *model.Invoice, item
 			return fmt.Errorf("delete old items: %w", err)
 		}
 		for i, item := range items {
-			_, err = tx.ExecContext(ctx,
-				`INSERT INTO invoice_items (invoice_id, description, quantity, unit, unit_price, subtotal, sort_order)
-				VALUES (?, ?, ?, ?, ?, ?, ?)`,
-				inv.ID, item.Description, item.Quantity, item.Unit, item.UnitPrice, item.Subtotal, i,
-			)
-			if err != nil {
-				return fmt.Errorf("insert invoice item: %w", err)
+			if item.IsLabel {
+				labelResult, err := tx.ExecContext(ctx,
+					`INSERT INTO invoice_items (invoice_id, parent_id, is_label, description, quantity, unit, unit_price, subtotal, sort_order)
+					VALUES (?, NULL, TRUE, ?, 0, '', 0, 0, ?)`,
+					inv.ID, item.Description, i,
+				)
+				if err != nil {
+					return fmt.Errorf("insert invoice label: %w", err)
+				}
+				labelID, err := labelResult.LastInsertId()
+				if err != nil {
+					return fmt.Errorf("get label id: %w", err)
+				}
+				for j, child := range item.Children {
+					_, err = tx.ExecContext(ctx,
+						`INSERT INTO invoice_items (invoice_id, parent_id, is_label, description, quantity, unit, unit_price, subtotal, sort_order)
+						VALUES (?, ?, FALSE, ?, ?, ?, ?, ?, ?)`,
+						inv.ID, labelID, child.Description, child.Quantity, child.Unit, child.UnitPrice, child.Subtotal, j,
+					)
+					if err != nil {
+						return fmt.Errorf("insert invoice item under label: %w", err)
+					}
+				}
+			} else {
+				_, err = tx.ExecContext(ctx,
+					`INSERT INTO invoice_items (invoice_id, parent_id, is_label, description, quantity, unit, unit_price, subtotal, sort_order)
+					VALUES (?, NULL, FALSE, ?, ?, ?, ?, ?, ?)`,
+					inv.ID, item.Description, item.Quantity, item.Unit, item.UnitPrice, item.Subtotal, i,
+				)
+				if err != nil {
+					return fmt.Errorf("insert invoice item: %w", err)
+				}
 			}
 		}
 	}

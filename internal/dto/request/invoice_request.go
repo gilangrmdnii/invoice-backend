@@ -7,6 +7,11 @@ type InvoiceItemRequest struct {
 	UnitPrice   float64 `json:"unit_price" validate:"required,gt=0"`
 }
 
+type InvoiceLabelRequest struct {
+	Description string               `json:"description" validate:"required,min=1,max=500"`
+	Items       []InvoiceItemRequest `json:"items" validate:"required,min=1,dive"`
+}
+
 type CreateInvoiceRequest struct {
 	ProjectID        uint64               `json:"project_id" validate:"required"`
 	InvoiceType      string               `json:"invoice_type" validate:"required,oneof=DP FINAL_PAYMENT TOP_1 TOP_2 TOP_3 MEALS ADDITIONAL"`
@@ -20,7 +25,8 @@ type CreateInvoiceRequest struct {
 	Notes            string               `json:"notes" validate:"max=2000"`
 	Language         string               `json:"language" validate:"required,oneof=ID EN"`
 	FileURL          string               `json:"file_url" validate:"omitempty,max=500"`
-	Items            []InvoiceItemRequest `json:"items" validate:"required,min=1,dive"`
+	Items            []InvoiceItemRequest  `json:"items" validate:"omitempty,dive"`
+	Labels           []InvoiceLabelRequest `json:"labels" validate:"omitempty,dive"`
 }
 
 type UpdateInvoiceRequest struct {
@@ -34,7 +40,8 @@ type UpdateInvoiceRequest struct {
 	Notes            string               `json:"notes" validate:"max=2000"`
 	Language         string               `json:"language" validate:"omitempty,oneof=ID EN"`
 	FileURL          string               `json:"file_url" validate:"omitempty,max=500"`
-	Items            []InvoiceItemRequest `json:"items" validate:"omitempty,min=1,dive"`
+	Items            []InvoiceItemRequest  `json:"items" validate:"omitempty,dive"`
+	Labels           []InvoiceLabelRequest `json:"labels" validate:"omitempty,dive"`
 }
 
 type ApproveInvoiceRequest struct {

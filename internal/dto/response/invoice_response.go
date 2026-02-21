@@ -5,6 +5,8 @@ import "time"
 type InvoiceItemResponse struct {
 	ID          uint64  `json:"id"`
 	InvoiceID   uint64  `json:"invoice_id"`
+	ParentID    *uint64 `json:"parent_id,omitempty"`
+	IsLabel     bool    `json:"is_label"`
 	Description string  `json:"description"`
 	Quantity    float64 `json:"quantity"`
 	Unit        string  `json:"unit"`

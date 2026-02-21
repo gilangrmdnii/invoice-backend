@@ -112,19 +112,47 @@ func (s *InvoiceService) Create(ctx context.Context, req *request.CreateInvoiceR
 		return nil, fmt.Errorf("invalid invoice date format, use YYYY-MM-DD")
 	}
 
-	// Calculate totals from items
+	// Validate: must have items or labels
+	if len(req.Items) == 0 && len(req.Labels) == 0 {
+		return nil, fmt.Errorf("items or labels are required")
+	}
+
+	// Calculate totals from items and labels
 	var subtotal float64
-	items := make([]model.InvoiceItem, len(req.Items))
-	for i, item := range req.Items {
+	var items []model.InvoiceItem
+
+	// Add standalone items
+	for _, item := range req.Items {
 		itemSubtotal := item.Quantity * item.UnitPrice
 		subtotal += itemSubtotal
-		items[i] = model.InvoiceItem{
+		items = append(items, model.InvoiceItem{
 			Description: item.Description,
 			Quantity:    item.Quantity,
 			Unit:        item.Unit,
 			UnitPrice:   item.UnitPrice,
 			Subtotal:    itemSubtotal,
+		})
+	}
+
+	// Add labels with children
+	for _, label := range req.Labels {
+		var children []model.InvoiceItem
+		for _, child := range label.Items {
+			childSubtotal := child.Quantity * child.UnitPrice
+			subtotal += childSubtotal
+			children = append(children, model.InvoiceItem{
+				Description: child.Description,
+				Quantity:    child.Quantity,
+				Unit:        child.Unit,
+				UnitPrice:   child.UnitPrice,
+				Subtotal:    childSubtotal,
+			})
 		}
+		items = append(items, model.InvoiceItem{
+			IsLabel:     true,
+			Description: label.Description,
+			Children:    children,
+		})
 	}
 
 	// Calculate tax and total
@@ -160,41 +188,7 @@ func (s *InvoiceService) Create(ctx context.Context, req *request.CreateInvoiceR
 		fmt.Sprintf("A new %s invoice (%s) of %.2f has been created", inv.InvoiceType, inv.InvoiceNumber, inv.Amount),
 		model.NotifInvoiceCreated, id)
 
-	// Build response with items
-	itemResponses := make([]response.InvoiceItemResponse, len(items))
-	for i, item := range items {
-		itemResponses[i] = response.InvoiceItemResponse{
-			Description: item.Description,
-			Quantity:    item.Quantity,
-			Unit:        item.Unit,
-			UnitPrice:   item.UnitPrice,
-			Subtotal:    item.Subtotal,
-			SortOrder:   i,
-		}
-	}
-
-	return &response.InvoiceResponse{
-		ID:               id,
-		InvoiceNumber:    inv.InvoiceNumber,
-		InvoiceType:      string(inv.InvoiceType),
-		ProjectID:        inv.ProjectID,
-		Amount:           inv.Amount,
-		Status:           string(model.InvoiceStatusPending),
-		FileURL:          inv.FileURL,
-		RecipientName:    inv.RecipientName,
-		RecipientAddress: inv.RecipientAddress,
-		Attention:        inv.Attention,
-		PONumber:         inv.PONumber,
-		InvoiceDate:      inv.InvoiceDate.Format("2006-01-02"),
-		DPPercentage:     inv.DPPercentage,
-		Subtotal:         inv.Subtotal,
-		TaxPercentage:    inv.TaxPercentage,
-		TaxAmount:        inv.TaxAmount,
-		Notes:            inv.Notes,
-		Language:         inv.Language,
-		CreatedBy:        userID,
-		Items:            itemResponses,
-	}, nil
+	return s.GetByID(ctx, id)
 }
 
 func (s *InvoiceService) List(ctx context.Context, userID uint64, role string) ([]response.InvoiceResponse, error) {
@@ -249,6 +243,8 @@ func (s *InvoiceService) GetByID(ctx context.Context, id uint64) (*response.Invo
 		resp.Items[i] = response.InvoiceItemResponse{
 			ID:          item.ID,
 			InvoiceID:   item.InvoiceID,
+			ParentID:    item.ParentID,
+			IsLabel:     item.IsLabel,
 			Description: item.Description,
 			Quantity:    item.Quantity,
 			Unit:        item.Unit,
@@ -311,19 +307,40 @@ func (s *InvoiceService) Update(ctx context.Context, id uint64, req *request.Upd
 	}
 
 	var items []model.InvoiceItem
-	if req.Items != nil && len(req.Items) > 0 {
+	hasItems := (req.Items != nil && len(req.Items) > 0) || (req.Labels != nil && len(req.Labels) > 0)
+	if hasItems {
 		var subtotal float64
-		items = make([]model.InvoiceItem, len(req.Items))
-		for i, item := range req.Items {
+		// Standalone items
+		for _, item := range req.Items {
 			itemSubtotal := item.Quantity * item.UnitPrice
 			subtotal += itemSubtotal
-			items[i] = model.InvoiceItem{
+			items = append(items, model.InvoiceItem{
 				Description: item.Description,
 				Quantity:    item.Quantity,
 				Unit:        item.Unit,
 				UnitPrice:   item.UnitPrice,
 				Subtotal:    itemSubtotal,
+			})
+		}
+		// Labels with children
+		for _, label := range req.Labels {
+			var children []model.InvoiceItem
+			for _, child := range label.Items {
+				childSubtotal := child.Quantity * child.UnitPrice
+				subtotal += childSubtotal
+				children = append(children, model.InvoiceItem{
+					Description: child.Description,
+					Quantity:    child.Quantity,
+					Unit:        child.Unit,
+					UnitPrice:   child.UnitPrice,
+					Subtotal:    childSubtotal,
+				})
 			}
+			items = append(items, model.InvoiceItem{
+				IsLabel:     true,
+				Description: label.Description,
+				Children:    children,
+			})
 		}
 		inv.Subtotal = subtotal
 
