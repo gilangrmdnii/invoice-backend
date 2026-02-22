@@ -22,23 +22,23 @@ func RunMigrations(db *sql.DB, migrationFS embed.FS) error {
 		return fmt.Errorf("create schema_migrations table: %w", err)
 	}
 
-	// Baseline: if schema_migrations is empty but tables already exist,
-	// mark old migrations as already applied (they were run manually before auto-migrate).
-	var migrationCount int
-	_ = db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&migrationCount)
-	if migrationCount == 0 {
-		// Direct check: try to query the invoices table
-		var dummy int
-		err := db.QueryRow(`SELECT 1 FROM invoices LIMIT 1`).Scan(&dummy)
-		if err == nil || err == sql.ErrNoRows {
-			// Table exists — old migrations were already applied manually
-			baseline := []string{"000001_init_schema.sql", "000002_invoices.sql", "000003_enhanced_invoices.sql"}
-			for _, name := range baseline {
-				_, _ = db.Exec(`INSERT IGNORE INTO schema_migrations (version) VALUES (?)`, name)
-			}
-			log.Println("[migrate] baseline: marked 000001-000003 as already applied")
-		} else {
-			log.Printf("[migrate] fresh database detected (invoices table check: %v)", err)
+	// Baseline: check each old migration and mark as applied if its changes already exist.
+	// This handles databases where migrations were run manually before auto-migrate.
+	baselineChecks := map[string]string{
+		"000001_init_schema.sql":       `SELECT 1 FROM users LIMIT 1`,
+		"000002_invoices.sql":          `SELECT 1 FROM invoices LIMIT 1`,
+		"000003_enhanced_invoices.sql": `SELECT invoice_type FROM invoices LIMIT 1`,
+	}
+	for name, checkSQL := range baselineChecks {
+		var alreadyApplied int
+		_ = db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = ?`, name).Scan(&alreadyApplied)
+		if alreadyApplied > 0 {
+			continue
+		}
+		var dummy interface{}
+		if err := db.QueryRow(checkSQL).Scan(&dummy); err == nil || err == sql.ErrNoRows {
+			_, _ = db.Exec(`INSERT IGNORE INTO schema_migrations (version) VALUES (?)`, name)
+			log.Printf("[migrate] baseline: marked %s as already applied", name)
 		}
 	}
 
