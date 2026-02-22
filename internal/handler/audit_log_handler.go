@@ -40,6 +40,7 @@ func (h *AuditLogHandler) List(c *fiber.Ctx) error {
 		result = append(result, response.AuditLogResponse{
 			ID:         l.ID,
 			UserID:     l.UserID,
+			FullName:   l.FullName,
 			Action:     l.Action,
 			EntityType: l.EntityType,
 			EntityID:   l.EntityID,

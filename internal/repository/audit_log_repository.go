@@ -36,7 +36,8 @@ func (r *AuditLogRepository) Create(ctx context.Context, log *model.AuditLog) (u
 }
 
 func (r *AuditLogRepository) FindAll(ctx context.Context) ([]model.AuditLog, error) {
-	query := `SELECT id, user_id, action, entity_type, entity_id, details, created_at FROM audit_logs ORDER BY created_at DESC`
+	query := `SELECT a.id, a.user_id, COALESCE(u.full_name, ''), a.action, a.entity_type, a.entity_id, a.details, a.created_at
+	FROM audit_logs a LEFT JOIN users u ON a.user_id = u.id ORDER BY a.created_at DESC`
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -47,7 +48,8 @@ func (r *AuditLogRepository) FindAll(ctx context.Context) ([]model.AuditLog, err
 }
 
 func (r *AuditLogRepository) FindByEntityType(ctx context.Context, entityType string) ([]model.AuditLog, error) {
-	query := `SELECT id, user_id, action, entity_type, entity_id, details, created_at FROM audit_logs WHERE entity_type = ? ORDER BY created_at DESC`
+	query := `SELECT a.id, a.user_id, COALESCE(u.full_name, ''), a.action, a.entity_type, a.entity_id, a.details, a.created_at
+	FROM audit_logs a LEFT JOIN users u ON a.user_id = u.id WHERE a.entity_type = ? ORDER BY a.created_at DESC`
 	rows, err := r.db.QueryContext(ctx, query, entityType)
 	if err != nil {
 		return nil, err
@@ -62,7 +64,7 @@ func scanAuditLogs(rows *sql.Rows) ([]model.AuditLog, error) {
 	for rows.Next() {
 		var l model.AuditLog
 		var details sql.NullString
-		if err := rows.Scan(&l.ID, &l.UserID, &l.Action, &l.EntityType, &l.EntityID, &details, &l.CreatedAt); err != nil {
+		if err := rows.Scan(&l.ID, &l.UserID, &l.FullName, &l.Action, &l.EntityType, &l.EntityID, &details, &l.CreatedAt); err != nil {
 			return nil, err
 		}
 		if details.Valid {
