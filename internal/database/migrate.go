@@ -22,6 +22,23 @@ func RunMigrations(db *sql.DB, migrationFS embed.FS) error {
 		return fmt.Errorf("create schema_migrations table: %w", err)
 	}
 
+	// Baseline: if schema_migrations is empty but tables already exist,
+	// mark old migrations as already applied (they were run manually before auto-migrate).
+	var migrationCount int
+	_ = db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&migrationCount)
+	if migrationCount == 0 {
+		// Check if the database already has tables from previous manual migrations
+		var tableExists int
+		_ = db.QueryRow(`SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'invoices'`).Scan(&tableExists)
+		if tableExists > 0 {
+			baseline := []string{"000001_init_schema.sql", "000002_invoices.sql", "000003_enhanced_invoices.sql"}
+			for _, name := range baseline {
+				_, _ = db.Exec(`INSERT IGNORE INTO schema_migrations (version) VALUES (?)`, name)
+			}
+			log.Println("[migrate] baseline: marked 000001-000003 as already applied")
+		}
+	}
+
 	// Get already applied migrations
 	applied := make(map[string]bool)
 	rows, err := db.Query(`SELECT version FROM schema_migrations`)
