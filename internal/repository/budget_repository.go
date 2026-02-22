@@ -32,3 +32,9 @@ func (r *BudgetRepository) UpdateSpentAmount(ctx context.Context, projectID uint
 	_, err := r.db.ExecContext(ctx, query, amount, projectID)
 	return err
 }
+
+func (r *BudgetRepository) IncreaseTotalBudget(ctx context.Context, projectID uint64, amount float64) error {
+	query := `UPDATE project_budgets SET total_budget = total_budget + ?, updated_at = NOW() WHERE project_id = ?`
+	_, err := r.db.ExecContext(ctx, query, amount, projectID)
+	return err
+}

@@ -110,18 +110,6 @@ func (s *BudgetRequestService) Create(ctx context.Context, req *request.CreateBu
 		}
 	}
 
-	// Budget request only allowed when project budget is depleted
-	budget, err := s.budgetRepo.FindByProjectID(ctx, req.ProjectID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("project has no budget configured")
-		}
-		return nil, err
-	}
-	if budget.SpentAmount < budget.TotalBudget {
-		return nil, fmt.Errorf("budget is not yet depleted (remaining: %.2f)", budget.TotalBudget-budget.SpentAmount)
-	}
-
 	br := &model.BudgetRequest{
 		ProjectID:   req.ProjectID,
 		RequestedBy: userID,
@@ -215,8 +203,13 @@ func (s *BudgetRequestService) Approve(ctx context.Context, id, approvedBy uint6
 		return nil, fmt.Errorf("approve budget request: %w", err)
 	}
 
+	// Increase project total budget by approved amount
+	if err := s.budgetRepo.IncreaseTotalBudget(ctx, br.ProjectID, br.Amount); err != nil {
+		log.Printf("failed to increase budget for project %d: %v", br.ProjectID, err)
+	}
+
 	// Audit + Notification
-	s.logAudit(ctx, approvedBy, "APPROVE", "budget_request", id, "")
+	s.logAudit(ctx, approvedBy, "APPROVE", "budget_request", id, fmt.Sprintf("amount=%.2f added to project budget", br.Amount))
 	s.notifyUser(ctx, br.RequestedBy, "Budget Request Approved",
 		fmt.Sprintf("Your budget request of %.2f has been approved", br.Amount),
 		model.NotifBudgetApproved, id)
