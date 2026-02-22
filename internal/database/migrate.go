@@ -27,15 +27,18 @@ func RunMigrations(db *sql.DB, migrationFS embed.FS) error {
 	var migrationCount int
 	_ = db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&migrationCount)
 	if migrationCount == 0 {
-		// Check if the database already has tables from previous manual migrations
-		var tableExists int
-		_ = db.QueryRow(`SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'invoices'`).Scan(&tableExists)
-		if tableExists > 0 {
+		// Direct check: try to query the invoices table
+		var dummy int
+		err := db.QueryRow(`SELECT 1 FROM invoices LIMIT 1`).Scan(&dummy)
+		if err == nil || err == sql.ErrNoRows {
+			// Table exists — old migrations were already applied manually
 			baseline := []string{"000001_init_schema.sql", "000002_invoices.sql", "000003_enhanced_invoices.sql"}
 			for _, name := range baseline {
 				_, _ = db.Exec(`INSERT IGNORE INTO schema_migrations (version) VALUES (?)`, name)
 			}
 			log.Println("[migrate] baseline: marked 000001-000003 as already applied")
+		} else {
+			log.Printf("[migrate] fresh database detected (invoices table check: %v)", err)
 		}
 	}
 
