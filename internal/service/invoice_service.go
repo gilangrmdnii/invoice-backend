@@ -87,7 +87,7 @@ func (s *InvoiceService) notifyRoles(ctx context.Context, roles []string, title,
 	}
 }
 
-func (s *InvoiceService) Create(ctx context.Context, req *request.CreateInvoiceRequest, userID uint64) (*response.InvoiceResponse, error) {
+func (s *InvoiceService) Create(ctx context.Context, req *request.CreateInvoiceRequest, userID uint64, role string) (*response.InvoiceResponse, error) {
 	// Verify project exists
 	_, err := s.projectRepo.FindByID(ctx, req.ProjectID)
 	if err != nil {
@@ -97,13 +97,15 @@ func (s *InvoiceService) Create(ctx context.Context, req *request.CreateInvoiceR
 		return nil, err
 	}
 
-	// SPV must be a member of the project
-	isMember, err := s.memberRepo.Exists(ctx, req.ProjectID, userID)
-	if err != nil {
-		return nil, err
-	}
-	if !isMember {
-		return nil, fmt.Errorf("not a member of this project")
+	// FINANCE and OWNER can create invoices for any project; others must be a member
+	if role != "FINANCE" && role != "OWNER" {
+		isMember, err := s.memberRepo.Exists(ctx, req.ProjectID, userID)
+		if err != nil {
+			return nil, err
+		}
+		if !isMember {
+			return nil, fmt.Errorf("not a member of this project")
+		}
 	}
 
 	// Parse invoice date

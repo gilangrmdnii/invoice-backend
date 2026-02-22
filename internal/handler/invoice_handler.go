@@ -27,8 +27,9 @@ func (h *InvoiceHandler) Create(c *fiber.Ctx) error {
 	}
 
 	userID := middleware.GetUserID(c)
+	role := middleware.GetUserRole(c)
 
-	result, err := h.invoiceService.Create(c.Context(), &req, userID)
+	result, err := h.invoiceService.Create(c.Context(), &req, userID, role)
 	if err != nil {
 		switch err.Error() {
 		case "project not found":
