@@ -20,6 +20,7 @@ type InvoiceResponse struct {
 	InvoiceNumber    string                `json:"invoice_number"`
 	InvoiceType      string                `json:"invoice_type"`
 	ProjectID        uint64                `json:"project_id"`
+	ProjectName      string                `json:"project_name,omitempty"`
 	Amount           float64               `json:"amount"`
 	Status           string                `json:"status"`
 	FileURL          string                `json:"file_url,omitempty"`

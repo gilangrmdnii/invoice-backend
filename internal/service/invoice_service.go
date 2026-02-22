@@ -238,6 +238,13 @@ func (s *InvoiceService) GetByID(ctx context.Context, id uint64) (*response.Invo
 	}
 
 	resp := toInvoiceResponse(inv)
+
+	// Populate project name
+	project, err := s.projectRepo.FindByID(ctx, inv.ProjectID)
+	if err == nil {
+		resp.ProjectName = project.Name
+	}
+
 	resp.Items = make([]response.InvoiceItemResponse, len(items))
 	for i, item := range items {
 		resp.Items[i] = response.InvoiceItemResponse{

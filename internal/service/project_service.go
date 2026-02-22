@@ -240,6 +240,7 @@ func (s *ProjectService) ListMembers(ctx context.Context, projectID uint64) ([]r
 			UserID:    m.UserID,
 			FullName:  user.FullName,
 			Email:     user.Email,
+			Role:      string(user.Role),
 			CreatedAt: m.CreatedAt,
 		})
 	}
