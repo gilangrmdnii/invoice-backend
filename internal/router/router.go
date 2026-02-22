@@ -115,7 +115,7 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 
 	// Invoice routes
 	invoices := protected.Group("/invoices")
-	invoices.Post("", middleware.RequireRoles("SPV"), invoiceHandler.Create)
+	invoices.Post("", invoiceHandler.Create)
 	invoices.Get("", invoiceHandler.List)
 	invoices.Get("/:id", invoiceHandler.GetByID)
 	invoices.Put("/:id", middleware.RequireRoles("SPV"), invoiceHandler.Update)
