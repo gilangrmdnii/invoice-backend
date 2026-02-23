@@ -51,6 +51,18 @@ func (s *AuthService) Register(ctx context.Context, req *request.RegisterRequest
 		return nil, fmt.Errorf("create user: %w", err)
 	}
 
+	created, _ := s.userRepo.FindByID(ctx, id)
+	if created != nil {
+		return &response.UserResponse{
+			ID:        id,
+			FullName:  created.FullName,
+			Email:     created.Email,
+			Role:      string(created.Role),
+			CreatedAt: created.CreatedAt,
+			UpdatedAt: created.UpdatedAt,
+		}, nil
+	}
+
 	return &response.UserResponse{
 		ID:       id,
 		FullName: user.FullName,

@@ -56,6 +56,36 @@ func (r *UserRepository) FindByID(ctx context.Context, id uint64) (*model.User, 
 	return user, nil
 }
 
+func (r *UserRepository) FindAll(ctx context.Context) ([]model.User, error) {
+	query := `SELECT id, full_name, email, password, role, created_at, updated_at FROM users ORDER BY created_at DESC`
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []model.User
+	for rows.Next() {
+		var u model.User
+		if err := rows.Scan(&u.ID, &u.FullName, &u.Email, &u.Password, &u.Role, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
+func (r *UserRepository) Update(ctx context.Context, id uint64, user *model.User) error {
+	query := `UPDATE users SET full_name = ?, email = ?, password = ?, role = ? WHERE id = ?`
+	_, err := r.db.ExecContext(ctx, query, user.FullName, user.Email, user.Password, user.Role, id)
+	return err
+}
+
+func (r *UserRepository) Delete(ctx context.Context, id uint64) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, id)
+	return err
+}
+
 func (r *UserRepository) FindByRoles(ctx context.Context, roles []string) ([]model.User, error) {
 	if len(roles) == 0 {
 		return nil, nil

@@ -48,6 +48,7 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	invoiceService := service.NewInvoiceService(invoiceRepo, invoicePaymentRepo, projectRepo, memberRepo, auditLogRepo, notifRepo, userRepo, sseHub)
 	companySettingsService := service.NewCompanySettingsService(companySettingsRepo)
 	invoicePaymentService := service.NewInvoicePaymentService(invoicePaymentRepo, invoiceRepo, auditLogRepo, notifRepo, userRepo, sseHub)
+	userService := service.NewUserService(userRepo, auditLogRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -60,7 +61,7 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	sseHandler := handler.NewSSEHandler(sseHub)
 	uploadHandler := handler.NewUploadHandler(uploadDir)
 	invoiceHandler := handler.NewInvoiceHandler(invoiceService)
-	userHandler := handler.NewUserHandler(userRepo)
+	userHandler := handler.NewUserHandler(userService)
 	companySettingsHandler := handler.NewCompanySettingsHandler(companySettingsService)
 	invoicePaymentHandler := handler.NewInvoicePaymentHandler(invoicePaymentService)
 
@@ -86,7 +87,11 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	protected.Post("/upload", uploadHandler.Upload)
 
 	// Users
-	protected.Get("/users", userHandler.List)
+	users := protected.Group("/users")
+	users.Get("", userHandler.List)
+	users.Post("", middleware.RequireRoles("OWNER"), userHandler.Create)
+	users.Put("/:id", middleware.RequireRoles("OWNER"), userHandler.Update)
+	users.Delete("/:id", middleware.RequireRoles("OWNER"), userHandler.Delete)
 
 	// Project routes
 	projects := protected.Group("/projects")
