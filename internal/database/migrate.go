@@ -25,9 +25,10 @@ func RunMigrations(db *sql.DB, migrationFS embed.FS) error {
 	// Baseline: check each old migration and mark as applied if its changes already exist.
 	// This handles databases where migrations were run manually before auto-migrate.
 	baselineChecks := map[string]string{
-		"000001_init_schema.sql":       `SELECT 1 FROM users LIMIT 1`,
-		"000002_invoices.sql":          `SELECT 1 FROM invoices LIMIT 1`,
-		"000003_enhanced_invoices.sql": `SELECT invoice_type FROM invoices LIMIT 1`,
+		"000001_init_schema.sql":            `SELECT 1 FROM users LIMIT 1`,
+		"000002_invoices.sql":               `SELECT 1 FROM invoices LIMIT 1`,
+		"000003_enhanced_invoices.sql":      `SELECT invoice_type FROM invoices LIMIT 1`,
+		"000006_project_plan_items.sql":     `SELECT 1 FROM project_plan_items LIMIT 1`,
 	}
 	for name, checkSQL := range baselineChecks {
 		var alreadyApplied int

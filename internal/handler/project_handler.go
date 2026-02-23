@@ -86,6 +86,45 @@ func (h *ProjectHandler) Update(c *fiber.Ctx) error {
 	return response.Success(c, fiber.StatusOK, "project updated successfully", project)
 }
 
+func (h *ProjectHandler) GetPlan(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "invalid project id")
+	}
+
+	items, err := h.projectService.GetPlan(c.Context(), id)
+	if err != nil {
+		if err.Error() == "project not found" {
+			return response.Error(c, fiber.StatusNotFound, err.Error())
+		}
+		return response.Error(c, fiber.StatusInternalServerError, "failed to get plan")
+	}
+
+	return response.Success(c, fiber.StatusOK, "plan retrieved successfully", items)
+}
+
+func (h *ProjectHandler) UpdatePlan(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "invalid project id")
+	}
+
+	var req request.UpdateProjectPlanRequest
+	if err := validator.ParseAndValidate(c, &req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	items, err := h.projectService.UpdatePlan(c.Context(), id, &req)
+	if err != nil {
+		if err.Error() == "project not found" {
+			return response.Error(c, fiber.StatusNotFound, err.Error())
+		}
+		return response.Error(c, fiber.StatusInternalServerError, "failed to update plan")
+	}
+
+	return response.Success(c, fiber.StatusOK, "plan updated successfully", items)
+}
+
 func (h *ProjectHandler) AddMember(c *fiber.Ctx) error {
 	projectID, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {

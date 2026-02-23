@@ -17,6 +17,7 @@ type ProjectService struct {
 	memberRepo  *repository.ProjectMemberRepository
 	budgetRepo  *repository.BudgetRepository
 	userRepo    *repository.UserRepository
+	planRepo    *repository.ProjectPlanRepository
 }
 
 func NewProjectService(
@@ -24,12 +25,14 @@ func NewProjectService(
 	memberRepo *repository.ProjectMemberRepository,
 	budgetRepo *repository.BudgetRepository,
 	userRepo *repository.UserRepository,
+	planRepo *repository.ProjectPlanRepository,
 ) *ProjectService {
 	return &ProjectService{
 		projectRepo: projectRepo,
 		memberRepo:  memberRepo,
 		budgetRepo:  budgetRepo,
 		userRepo:    userRepo,
+		planRepo:    planRepo,
 	}
 }
 
@@ -41,9 +44,26 @@ func (s *ProjectService) Create(ctx context.Context, req *request.CreateProjectR
 		CreatedBy:   userID,
 	}
 
-	id, err := s.projectRepo.CreateWithBudget(ctx, project, req.TotalBudget)
+	// Build plan items and calculate budget from plan
+	planItems := buildPlanItems(req)
+	totalBudget := req.TotalBudget
+	if len(planItems) > 0 {
+		totalBudget = calcPlanBudget(planItems)
+	}
+	if totalBudget <= 0 && len(planItems) == 0 {
+		totalBudget = req.TotalBudget
+	}
+
+	id, err := s.projectRepo.CreateWithBudget(ctx, project, totalBudget)
 	if err != nil {
 		return nil, fmt.Errorf("create project: %w", err)
+	}
+
+	// Insert plan items if any
+	if len(planItems) > 0 {
+		if err := s.planRepo.ReplaceAll(ctx, id, planItems); err != nil {
+			return nil, fmt.Errorf("insert plan items: %w", err)
+		}
 	}
 
 	return &response.ProjectResponse{
@@ -51,7 +71,7 @@ func (s *ProjectService) Create(ctx context.Context, req *request.CreateProjectR
 		Name:        project.Name,
 		Description: project.Description,
 		Status:      string(project.Status),
-		TotalBudget: req.TotalBudget,
+		TotalBudget: totalBudget,
 		SpentAmount: 0,
 		CreatedBy:   userID,
 	}, nil
@@ -153,6 +173,74 @@ func (s *ProjectService) Update(ctx context.Context, id uint64, req *request.Upd
 	return s.GetByID(ctx, id)
 }
 
+func (s *ProjectService) GetPlan(ctx context.Context, projectID uint64) ([]model.ProjectPlanItem, error) {
+	// Verify project exists
+	_, err := s.projectRepo.FindByID(ctx, projectID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("project not found")
+		}
+		return nil, err
+	}
+
+	items, err := s.planRepo.FindByProjectID(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("get plan: %w", err)
+	}
+	if items == nil {
+		items = []model.ProjectPlanItem{}
+	}
+	return items, nil
+}
+
+func (s *ProjectService) UpdatePlan(ctx context.Context, projectID uint64, req *request.UpdateProjectPlanRequest) ([]model.ProjectPlanItem, error) {
+	// Verify project exists
+	_, err := s.projectRepo.FindByID(ctx, projectID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("project not found")
+		}
+		return nil, err
+	}
+
+	// Build plan items from request
+	var planItems []model.ProjectPlanItem
+
+	for _, label := range req.Labels {
+		item := model.ProjectPlanItem{
+			IsLabel:     true,
+			Description: label.Description,
+		}
+		for _, child := range label.Items {
+			item.Children = append(item.Children, model.ProjectPlanItem{
+				Description: child.Description,
+				Quantity:    child.Quantity,
+				Unit:        child.Unit,
+				UnitPrice:   child.UnitPrice,
+				Subtotal:    child.Quantity * child.UnitPrice,
+			})
+		}
+		planItems = append(planItems, item)
+	}
+
+	for _, standalone := range req.Items {
+		planItems = append(planItems, model.ProjectPlanItem{
+			IsLabel:     false,
+			Description: standalone.Description,
+			Quantity:    standalone.Quantity,
+			Unit:        standalone.Unit,
+			UnitPrice:   standalone.UnitPrice,
+			Subtotal:    standalone.Quantity * standalone.UnitPrice,
+		})
+	}
+
+	if err := s.planRepo.ReplaceAll(ctx, projectID, planItems); err != nil {
+		return nil, fmt.Errorf("update plan: %w", err)
+	}
+
+	return s.planRepo.FindByProjectID(ctx, projectID)
+}
+
 func (s *ProjectService) AddMember(ctx context.Context, projectID, userID uint64) (*response.ProjectMemberResponse, error) {
 	// Verify project exists
 	_, err := s.projectRepo.FindByID(ctx, projectID)
@@ -246,4 +334,54 @@ func (s *ProjectService) ListMembers(ctx context.Context, projectID uint64) ([]r
 	}
 
 	return result, nil
+}
+
+// buildPlanItems converts create request plan fields into model items
+func buildPlanItems(req *request.CreateProjectRequest) []model.ProjectPlanItem {
+	var items []model.ProjectPlanItem
+
+	for _, label := range req.PlanLabels {
+		item := model.ProjectPlanItem{
+			IsLabel:     true,
+			Description: label.Description,
+		}
+		for _, child := range label.Items {
+			item.Children = append(item.Children, model.ProjectPlanItem{
+				Description: child.Description,
+				Quantity:    child.Quantity,
+				Unit:        child.Unit,
+				UnitPrice:   child.UnitPrice,
+				Subtotal:    child.Quantity * child.UnitPrice,
+			})
+		}
+		items = append(items, item)
+	}
+
+	for _, standalone := range req.PlanItems {
+		items = append(items, model.ProjectPlanItem{
+			IsLabel:     false,
+			Description: standalone.Description,
+			Quantity:    standalone.Quantity,
+			Unit:        standalone.Unit,
+			UnitPrice:   standalone.UnitPrice,
+			Subtotal:    standalone.Quantity * standalone.UnitPrice,
+		})
+	}
+
+	return items
+}
+
+// calcPlanBudget sums subtotals from plan items
+func calcPlanBudget(items []model.ProjectPlanItem) float64 {
+	var total float64
+	for _, item := range items {
+		if item.IsLabel {
+			for _, child := range item.Children {
+				total += child.Quantity * child.UnitPrice
+			}
+		} else {
+			total += item.Quantity * item.UnitPrice
+		}
+	}
+	return total
 }

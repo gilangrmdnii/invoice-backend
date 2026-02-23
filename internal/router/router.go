@@ -37,9 +37,11 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	invoiceRepo := repository.NewInvoiceRepository(db)
 	companySettingsRepo := repository.NewCompanySettingsRepository(db)
 
+	planRepo := repository.NewProjectPlanRepository(db)
+
 	// Services
 	authService := service.NewAuthService(userRepo, cfg)
-	projectService := service.NewProjectService(projectRepo, memberRepo, budgetRepo, userRepo)
+	projectService := service.NewProjectService(projectRepo, memberRepo, budgetRepo, userRepo, planRepo)
 	expenseService := service.NewExpenseService(expenseRepo, projectRepo, memberRepo, auditLogRepo, notifRepo, userRepo, sseHub)
 	budgetRequestService := service.NewBudgetRequestService(budgetRequestRepo, projectRepo, memberRepo, budgetRepo, auditLogRepo, notifRepo, userRepo, sseHub)
 	notifService := service.NewNotificationService(notifRepo)
@@ -102,6 +104,8 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	projects.Post("/:id/members", middleware.RequireRoles("FINANCE", "OWNER"), projectHandler.AddMember)
 	projects.Delete("/:id/members/:userId", middleware.RequireRoles("FINANCE", "OWNER"), projectHandler.RemoveMember)
 	projects.Get("/:id/members", projectHandler.ListMembers)
+	projects.Get("/:id/plan", projectHandler.GetPlan)
+	projects.Put("/:id/plan", middleware.RequireRoles("FINANCE", "OWNER"), projectHandler.UpdatePlan)
 
 	// Expense routes
 	expenses := protected.Group("/expenses")
