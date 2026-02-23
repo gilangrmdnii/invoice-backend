@@ -27,12 +27,12 @@ func (r *InvoiceRepository) Create(ctx context.Context, inv *model.Invoice, item
 	// Insert invoice with temp number
 	tempNumber := fmt.Sprintf("TEMP-%d", time.Now().UnixNano())
 	result, err := tx.ExecContext(ctx,
-		`INSERT INTO invoices (invoice_number, invoice_type, project_id, amount, status, file_url,
-			recipient_name, recipient_address, attention, po_number, invoice_date,
+		`INSERT INTO invoices (invoice_number, invoice_type, project_id, amount, paid_amount, status, payment_status, file_url,
+			recipient_name, recipient_address, attention, po_number, invoice_date, due_date,
 			dp_percentage, subtotal, tax_percentage, tax_amount, notes, language, created_by)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		tempNumber, inv.InvoiceType, inv.ProjectID, inv.Amount, model.InvoiceStatusPending, inv.FileURL,
-		inv.RecipientName, inv.RecipientAddress, inv.Attention, inv.PONumber, inv.InvoiceDate,
+		VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		tempNumber, inv.InvoiceType, inv.ProjectID, inv.Amount, model.InvoiceStatusPending, inv.PaymentStatus, inv.FileURL,
+		inv.RecipientName, inv.RecipientAddress, inv.Attention, inv.PONumber, inv.InvoiceDate, inv.DueDate,
 		inv.DPPercentage, inv.Subtotal, inv.TaxPercentage, inv.TaxAmount, inv.Notes, inv.Language, inv.CreatedBy,
 	)
 	if err != nil {
@@ -111,8 +111,8 @@ func (r *InvoiceRepository) Create(ctx context.Context, inv *model.Invoice, item
 }
 
 func (r *InvoiceRepository) FindByID(ctx context.Context, id uint64) (*model.Invoice, error) {
-	query := `SELECT id, invoice_number, invoice_type, project_id, amount, status, file_url,
-		recipient_name, recipient_address, attention, po_number, invoice_date,
+	query := `SELECT id, invoice_number, invoice_type, project_id, amount, paid_amount, status, payment_status, file_url,
+		recipient_name, recipient_address, attention, po_number, invoice_date, due_date,
 		dp_percentage, subtotal, tax_percentage, tax_amount, notes, language,
 		created_by, approved_by, reject_notes, created_at, updated_at
 	FROM invoices WHERE id = ?`
@@ -121,10 +121,11 @@ func (r *InvoiceRepository) FindByID(ctx context.Context, id uint64) (*model.Inv
 	var fileURL, recipientAddr, attention, poNumber, notes, rejectNotes sql.NullString
 	var dpPercentage sql.NullFloat64
 	var approvedBy sql.NullInt64
+	var dueDate sql.NullTime
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&inv.ID, &inv.InvoiceNumber, &inv.InvoiceType, &inv.ProjectID, &inv.Amount, &inv.Status, &fileURL,
-		&inv.RecipientName, &recipientAddr, &attention, &poNumber, &inv.InvoiceDate,
+		&inv.ID, &inv.InvoiceNumber, &inv.InvoiceType, &inv.ProjectID, &inv.Amount, &inv.PaidAmount, &inv.Status, &inv.PaymentStatus, &fileURL,
+		&inv.RecipientName, &recipientAddr, &attention, &poNumber, &inv.InvoiceDate, &dueDate,
 		&dpPercentage, &inv.Subtotal, &inv.TaxPercentage, &inv.TaxAmount, &notes, &inv.Language,
 		&inv.CreatedBy, &approvedBy, &rejectNotes, &inv.CreatedAt, &inv.UpdatedAt,
 	)
@@ -145,13 +146,16 @@ func (r *InvoiceRepository) FindByID(ctx context.Context, id uint64) (*model.Inv
 		v := uint64(approvedBy.Int64)
 		inv.ApprovedBy = &v
 	}
+	if dueDate.Valid {
+		inv.DueDate = &dueDate.Time
+	}
 
 	return inv, nil
 }
 
 func (r *InvoiceRepository) FindAll(ctx context.Context) ([]model.Invoice, error) {
-	query := `SELECT id, invoice_number, invoice_type, project_id, amount, status, file_url,
-		recipient_name, recipient_address, attention, po_number, invoice_date,
+	query := `SELECT id, invoice_number, invoice_type, project_id, amount, paid_amount, status, payment_status, file_url,
+		recipient_name, recipient_address, attention, po_number, invoice_date, due_date,
 		dp_percentage, subtotal, tax_percentage, tax_amount, notes, language,
 		created_by, approved_by, reject_notes, created_at, updated_at
 	FROM invoices ORDER BY created_at DESC`
@@ -169,8 +173,8 @@ func (r *InvoiceRepository) FindByProjectIDs(ctx context.Context, projectIDs []u
 		return nil, nil
 	}
 	placeholders, args := buildInClause(projectIDs)
-	query := fmt.Sprintf(`SELECT id, invoice_number, invoice_type, project_id, amount, status, file_url,
-		recipient_name, recipient_address, attention, po_number, invoice_date,
+	query := fmt.Sprintf(`SELECT id, invoice_number, invoice_type, project_id, amount, paid_amount, status, payment_status, file_url,
+		recipient_name, recipient_address, attention, po_number, invoice_date, due_date,
 		dp_percentage, subtotal, tax_percentage, tax_amount, notes, language,
 		created_by, approved_by, reject_notes, created_at, updated_at
 	FROM invoices WHERE project_id IN (%s) ORDER BY created_at DESC`, placeholders)
@@ -358,10 +362,11 @@ func (r *InvoiceRepository) scanInvoices(rows *sql.Rows) ([]model.Invoice, error
 		var fileURL, recipientAddr, attention, poNumber, notes, rejectNotes sql.NullString
 		var dpPercentage sql.NullFloat64
 		var approvedBy sql.NullInt64
+		var dueDate sql.NullTime
 
 		if err := rows.Scan(
-			&inv.ID, &inv.InvoiceNumber, &inv.InvoiceType, &inv.ProjectID, &inv.Amount, &inv.Status, &fileURL,
-			&inv.RecipientName, &recipientAddr, &attention, &poNumber, &inv.InvoiceDate,
+			&inv.ID, &inv.InvoiceNumber, &inv.InvoiceType, &inv.ProjectID, &inv.Amount, &inv.PaidAmount, &inv.Status, &inv.PaymentStatus, &fileURL,
+			&inv.RecipientName, &recipientAddr, &attention, &poNumber, &inv.InvoiceDate, &dueDate,
 			&dpPercentage, &inv.Subtotal, &inv.TaxPercentage, &inv.TaxAmount, &notes, &inv.Language,
 			&inv.CreatedBy, &approvedBy, &rejectNotes, &inv.CreatedAt, &inv.UpdatedAt,
 		); err != nil {
@@ -380,6 +385,9 @@ func (r *InvoiceRepository) scanInvoices(rows *sql.Rows) ([]model.Invoice, error
 		if approvedBy.Valid {
 			v := uint64(approvedBy.Int64)
 			inv.ApprovedBy = &v
+		}
+		if dueDate.Valid {
+			inv.DueDate = &dueDate.Time
 		}
 
 		invoices = append(invoices, inv)

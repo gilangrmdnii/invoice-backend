@@ -44,8 +44,10 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	budgetRequestService := service.NewBudgetRequestService(budgetRequestRepo, projectRepo, memberRepo, budgetRepo, auditLogRepo, notifRepo, userRepo, sseHub)
 	notifService := service.NewNotificationService(notifRepo)
 	dashboardService := service.NewDashboardService(dashboardRepo, projectRepo)
-	invoiceService := service.NewInvoiceService(invoiceRepo, projectRepo, memberRepo, auditLogRepo, notifRepo, userRepo, sseHub)
+	invoicePaymentRepo := repository.NewInvoicePaymentRepository(db)
+	invoiceService := service.NewInvoiceService(invoiceRepo, invoicePaymentRepo, projectRepo, memberRepo, auditLogRepo, notifRepo, userRepo, sseHub)
 	companySettingsService := service.NewCompanySettingsService(companySettingsRepo)
+	invoicePaymentService := service.NewInvoicePaymentService(invoicePaymentRepo, invoiceRepo, auditLogRepo, notifRepo, userRepo, sseHub)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -60,6 +62,7 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	invoiceHandler := handler.NewInvoiceHandler(invoiceService)
 	userHandler := handler.NewUserHandler(userRepo)
 	companySettingsHandler := handler.NewCompanySettingsHandler(companySettingsService)
+	invoicePaymentHandler := handler.NewInvoicePaymentHandler(invoicePaymentService)
 
 	api := app.Group("/api")
 
@@ -122,6 +125,11 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	invoices.Delete("/:id", middleware.RequireRoles("SPV"), invoiceHandler.Delete)
 	invoices.Post("/:id/approve", middleware.RequireRoles("FINANCE", "OWNER"), invoiceHandler.Approve)
 	invoices.Post("/:id/reject", middleware.RequireRoles("FINANCE", "OWNER"), invoiceHandler.Reject)
+
+	// Invoice payment routes
+	invoices.Post("/:invoiceId/payments", middleware.RequireRoles("FINANCE", "OWNER"), invoicePaymentHandler.Create)
+	invoices.Get("/:invoiceId/payments", invoicePaymentHandler.ListByInvoice)
+	invoices.Delete("/:invoiceId/payments/:paymentId", middleware.RequireRoles("FINANCE", "OWNER"), invoicePaymentHandler.Delete)
 
 	// Company settings (FINANCE, OWNER only)
 	companySettings := protected.Group("/company-settings")

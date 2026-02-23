@@ -28,13 +28,16 @@ type Invoice struct {
 	InvoiceType      InvoiceType   `json:"invoice_type"`
 	ProjectID        uint64        `json:"project_id"`
 	Amount           float64       `json:"amount"`
+	PaidAmount       float64       `json:"paid_amount"`
 	Status           InvoiceStatus `json:"status"`
+	PaymentStatus    PaymentStatus `json:"payment_status"`
 	FileURL          string        `json:"file_url,omitempty"`
 	RecipientName    string        `json:"recipient_name"`
 	RecipientAddress string        `json:"recipient_address,omitempty"`
 	Attention        string        `json:"attention,omitempty"`
 	PONumber         string        `json:"po_number,omitempty"`
 	InvoiceDate      time.Time     `json:"invoice_date"`
+	DueDate          *time.Time    `json:"due_date,omitempty"`
 	DPPercentage     *float64      `json:"dp_percentage,omitempty"`
 	Subtotal         float64       `json:"subtotal"`
 	TaxPercentage    float64       `json:"tax_percentage"`

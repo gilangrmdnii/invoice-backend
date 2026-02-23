@@ -22,13 +22,16 @@ type InvoiceResponse struct {
 	ProjectID        uint64                `json:"project_id"`
 	ProjectName      string                `json:"project_name,omitempty"`
 	Amount           float64               `json:"amount"`
+	PaidAmount       float64               `json:"paid_amount"`
 	Status           string                `json:"status"`
+	PaymentStatus    string                `json:"payment_status"`
 	FileURL          string                `json:"file_url,omitempty"`
 	RecipientName    string                `json:"recipient_name"`
 	RecipientAddress string                `json:"recipient_address,omitempty"`
 	Attention        string                `json:"attention,omitempty"`
 	PONumber         string                `json:"po_number,omitempty"`
 	InvoiceDate      string                `json:"invoice_date"`
+	DueDate          string                `json:"due_date,omitempty"`
 	DPPercentage     *float64              `json:"dp_percentage,omitempty"`
 	Subtotal         float64               `json:"subtotal"`
 	TaxPercentage    float64               `json:"tax_percentage"`
@@ -38,7 +41,8 @@ type InvoiceResponse struct {
 	CreatedBy        uint64                `json:"created_by"`
 	ApprovedBy       *uint64               `json:"approved_by,omitempty"`
 	RejectNotes      string                `json:"reject_notes,omitempty"`
-	Items            []InvoiceItemResponse `json:"items"`
-	CreatedAt        time.Time             `json:"created_at"`
-	UpdatedAt        time.Time             `json:"updated_at"`
+	Items            []InvoiceItemResponse    `json:"items"`
+	Payments         []InvoicePaymentResponse `json:"payments,omitempty"`
+	CreatedAt        time.Time                `json:"created_at"`
+	UpdatedAt        time.Time                `json:"updated_at"`
 }

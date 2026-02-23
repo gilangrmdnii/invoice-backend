@@ -17,6 +17,7 @@ import (
 
 type InvoiceService struct {
 	invoiceRepo *repository.InvoiceRepository
+	paymentRepo *repository.InvoicePaymentRepository
 	projectRepo *repository.ProjectRepository
 	memberRepo  *repository.ProjectMemberRepository
 	auditRepo   *repository.AuditLogRepository
@@ -27,6 +28,7 @@ type InvoiceService struct {
 
 func NewInvoiceService(
 	invoiceRepo *repository.InvoiceRepository,
+	paymentRepo *repository.InvoicePaymentRepository,
 	projectRepo *repository.ProjectRepository,
 	memberRepo *repository.ProjectMemberRepository,
 	auditRepo *repository.AuditLogRepository,
@@ -36,6 +38,7 @@ func NewInvoiceService(
 ) *InvoiceService {
 	return &InvoiceService{
 		invoiceRepo: invoiceRepo,
+		paymentRepo: paymentRepo,
 		projectRepo: projectRepo,
 		memberRepo:  memberRepo,
 		auditRepo:   auditRepo,
@@ -178,6 +181,15 @@ func (s *InvoiceService) Create(ctx context.Context, req *request.CreateInvoiceR
 		Language:         req.Language,
 		FileURL:          req.FileURL,
 		CreatedBy:        userID,
+		PaymentStatus:    model.PaymentStatusUnpaid,
+	}
+
+	// Parse optional due date
+	if req.DueDate != "" {
+		dueDate, err := time.Parse("2006-01-02", req.DueDate)
+		if err == nil {
+			inv.DueDate = &dueDate
+		}
 	}
 
 	id, err := s.invoiceRepo.Create(ctx, inv, items)
@@ -260,6 +272,31 @@ func (s *InvoiceService) GetByID(ctx context.Context, id uint64) (*response.Invo
 			UnitPrice:   item.UnitPrice,
 			Subtotal:    item.Subtotal,
 			SortOrder:   item.SortOrder,
+		}
+	}
+
+	// Include payments
+	payments, err := s.paymentRepo.FindByInvoiceID(ctx, id)
+	if err == nil && len(payments) > 0 {
+		resp.Payments = make([]response.InvoicePaymentResponse, len(payments))
+		for i, p := range payments {
+			creator, _ := s.userRepo.FindByID(ctx, p.CreatedBy)
+			creatorName := ""
+			if creator != nil {
+				creatorName = creator.FullName
+			}
+			resp.Payments[i] = response.InvoicePaymentResponse{
+				ID:            p.ID,
+				InvoiceID:     p.InvoiceID,
+				Amount:        p.Amount,
+				PaymentDate:   p.PaymentDate.Format("2006-01-02"),
+				PaymentMethod: string(p.PaymentMethod),
+				ProofURL:      p.ProofURL,
+				Notes:         p.Notes,
+				CreatedBy:     p.CreatedBy,
+				CreatorName:   creatorName,
+				CreatedAt:     p.CreatedAt,
+			}
 		}
 	}
 
@@ -455,13 +492,15 @@ func (s *InvoiceService) Reject(ctx context.Context, id uint64, rejectedBy uint6
 }
 
 func toInvoiceResponse(inv *model.Invoice) response.InvoiceResponse {
-	return response.InvoiceResponse{
+	resp := response.InvoiceResponse{
 		ID:               inv.ID,
 		InvoiceNumber:    inv.InvoiceNumber,
 		InvoiceType:      string(inv.InvoiceType),
 		ProjectID:        inv.ProjectID,
 		Amount:           inv.Amount,
+		PaidAmount:       inv.PaidAmount,
 		Status:           string(inv.Status),
+		PaymentStatus:    string(inv.PaymentStatus),
 		FileURL:          inv.FileURL,
 		RecipientName:    inv.RecipientName,
 		RecipientAddress: inv.RecipientAddress,
@@ -480,4 +519,8 @@ func toInvoiceResponse(inv *model.Invoice) response.InvoiceResponse {
 		CreatedAt:        inv.CreatedAt,
 		UpdatedAt:        inv.UpdatedAt,
 	}
+	if inv.DueDate != nil {
+		resp.DueDate = inv.DueDate.Format("2006-01-02")
+	}
+	return resp
 }

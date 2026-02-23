@@ -20,6 +20,7 @@ type CreateInvoiceRequest struct {
 	Attention        string               `json:"attention" validate:"max=255"`
 	PONumber         string               `json:"po_number" validate:"max=100"`
 	InvoiceDate      string               `json:"invoice_date" validate:"required"`
+	DueDate          string               `json:"due_date" validate:"omitempty"`
 	DPPercentage     *float64             `json:"dp_percentage" validate:"omitempty,gte=0,lte=100"`
 	TaxPercentage    float64              `json:"tax_percentage" validate:"gte=0,lte=100"`
 	Notes            string               `json:"notes" validate:"max=2000"`
