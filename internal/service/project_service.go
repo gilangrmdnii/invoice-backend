@@ -44,17 +44,11 @@ func (s *ProjectService) Create(ctx context.Context, req *request.CreateProjectR
 		CreatedBy:   userID,
 	}
 
-	// Build plan items and calculate budget from plan
+	// Build plan items (rencana anggaran detail)
 	planItems := buildPlanItems(req)
-	totalBudget := req.TotalBudget
-	if len(planItems) > 0 {
-		totalBudget = calcPlanBudget(planItems)
-	}
-	if totalBudget <= 0 && len(planItems) == 0 {
-		totalBudget = req.TotalBudget
-	}
 
-	id, err := s.projectRepo.CreateWithBudget(ctx, project, totalBudget)
+	// total_budget is always from manual input
+	id, err := s.projectRepo.CreateWithBudget(ctx, project, req.TotalBudget)
 	if err != nil {
 		return nil, fmt.Errorf("create project: %w", err)
 	}
@@ -71,7 +65,7 @@ func (s *ProjectService) Create(ctx context.Context, req *request.CreateProjectR
 		Name:        project.Name,
 		Description: project.Description,
 		Status:      string(project.Status),
-		TotalBudget: totalBudget,
+		TotalBudget: req.TotalBudget,
 		SpentAmount: 0,
 		CreatedBy:   userID,
 	}, nil

@@ -43,7 +43,7 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	authService := service.NewAuthService(userRepo, cfg)
 	projectService := service.NewProjectService(projectRepo, memberRepo, budgetRepo, userRepo, planRepo)
 	expenseService := service.NewExpenseService(expenseRepo, projectRepo, memberRepo, auditLogRepo, notifRepo, userRepo, sseHub)
-	budgetRequestService := service.NewBudgetRequestService(budgetRequestRepo, projectRepo, memberRepo, budgetRepo, auditLogRepo, notifRepo, userRepo, sseHub)
+	budgetRequestService := service.NewBudgetRequestService(budgetRequestRepo, projectRepo, memberRepo, budgetRepo, expenseRepo, auditLogRepo, notifRepo, userRepo, sseHub)
 	notifService := service.NewNotificationService(notifRepo)
 	dashboardService := service.NewDashboardService(dashboardRepo, projectRepo)
 	invoicePaymentRepo := repository.NewInvoicePaymentRepository(db)

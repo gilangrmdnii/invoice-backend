@@ -19,6 +19,7 @@ type BudgetRequestService struct {
 	projectRepo       *repository.ProjectRepository
 	memberRepo        *repository.ProjectMemberRepository
 	budgetRepo        *repository.BudgetRepository
+	expenseRepo       *repository.ExpenseRepository
 	auditRepo         *repository.AuditLogRepository
 	notifRepo         *repository.NotificationRepository
 	userRepo          *repository.UserRepository
@@ -30,6 +31,7 @@ func NewBudgetRequestService(
 	projectRepo *repository.ProjectRepository,
 	memberRepo *repository.ProjectMemberRepository,
 	budgetRepo *repository.BudgetRepository,
+	expenseRepo *repository.ExpenseRepository,
 	auditRepo *repository.AuditLogRepository,
 	notifRepo *repository.NotificationRepository,
 	userRepo *repository.UserRepository,
@@ -40,6 +42,7 @@ func NewBudgetRequestService(
 		projectRepo:       projectRepo,
 		memberRepo:        memberRepo,
 		budgetRepo:        budgetRepo,
+		expenseRepo:       expenseRepo,
 		auditRepo:         auditRepo,
 		notifRepo:         notifRepo,
 		userRepo:          userRepo,
@@ -209,6 +212,30 @@ func (s *BudgetRequestService) Approve(ctx context.Context, id, approvedBy uint6
 	// Increase project total budget by approved amount
 	if err := s.budgetRepo.IncreaseTotalBudget(ctx, br.ProjectID, br.Amount); err != nil {
 		log.Printf("failed to increase budget for project %d: %v", br.ProjectID, err)
+	}
+
+	// Auto-create expense from approved budget request
+	receiptURL := ""
+	if br.ProofURL != nil {
+		receiptURL = *br.ProofURL
+	}
+	expenseID, err := s.expenseRepo.Create(ctx, &model.Expense{
+		ProjectID:   br.ProjectID,
+		Description: fmt.Sprintf("Budget Request: %s", br.Reason),
+		Amount:      br.Amount,
+		Category:    "Budget Request",
+		ReceiptURL:  receiptURL,
+		CreatedBy:   br.RequestedBy,
+	})
+	if err != nil {
+		log.Printf("failed to auto-create expense from budget request %d: %v", id, err)
+	} else {
+		s.logAudit(ctx, approvedBy, "CREATE", "expense", expenseID, fmt.Sprintf("auto-created from budget request %d, amount=%.2f", id, br.Amount))
+		// Notify requester about auto-created expense via SSE
+		s.sseHub.Publish(br.RequestedBy, sse.Event{
+			Type: "expense_update",
+			Data: map[string]interface{}{"id": expenseID, "action": "created"},
+		})
 	}
 
 	// Audit + Notification
