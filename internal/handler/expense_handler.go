@@ -93,8 +93,6 @@ func (h *ExpenseHandler) Update(c *fiber.Ctx) error {
 			return response.Error(c, fiber.StatusNotFound, err.Error())
 		case "not authorized to update this expense":
 			return response.Error(c, fiber.StatusForbidden, err.Error())
-		case "only pending expenses can be updated":
-			return response.Error(c, fiber.StatusBadRequest, err.Error())
 		}
 		return response.Error(c, fiber.StatusInternalServerError, "failed to update expense")
 	}
@@ -117,8 +115,6 @@ func (h *ExpenseHandler) Delete(c *fiber.Ctx) error {
 			return response.Error(c, fiber.StatusNotFound, err.Error())
 		case "not authorized to delete this expense":
 			return response.Error(c, fiber.StatusForbidden, err.Error())
-		case "only pending expenses can be deleted":
-			return response.Error(c, fiber.StatusBadRequest, err.Error())
 		}
 		return response.Error(c, fiber.StatusInternalServerError, "failed to delete expense")
 	}
@@ -126,56 +122,3 @@ func (h *ExpenseHandler) Delete(c *fiber.Ctx) error {
 	return response.Success(c, fiber.StatusOK, "expense deleted successfully", nil)
 }
 
-func (h *ExpenseHandler) Approve(c *fiber.Ctx) error {
-	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
-	if err != nil {
-		return response.Error(c, fiber.StatusBadRequest, "invalid expense id")
-	}
-
-	var req request.ApproveExpenseRequest
-	if err := validator.ParseAndValidate(c, &req); err != nil {
-		return response.Error(c, fiber.StatusBadRequest, err.Error())
-	}
-
-	userID := middleware.GetUserID(c)
-
-	result, err := h.expenseService.Approve(c.Context(), id, userID, req.Notes, req.ProofURL)
-	if err != nil {
-		switch err.Error() {
-		case "expense not found":
-			return response.Error(c, fiber.StatusNotFound, err.Error())
-		case "expense is not pending":
-			return response.Error(c, fiber.StatusBadRequest, err.Error())
-		}
-		return response.Error(c, fiber.StatusInternalServerError, "failed to approve expense")
-	}
-
-	return response.Success(c, fiber.StatusOK, "expense approved successfully", result)
-}
-
-func (h *ExpenseHandler) Reject(c *fiber.Ctx) error {
-	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
-	if err != nil {
-		return response.Error(c, fiber.StatusBadRequest, "invalid expense id")
-	}
-
-	var req request.ApproveExpenseRequest
-	if err := validator.ParseAndValidate(c, &req); err != nil {
-		return response.Error(c, fiber.StatusBadRequest, err.Error())
-	}
-
-	userID := middleware.GetUserID(c)
-
-	result, err := h.expenseService.Reject(c.Context(), id, userID, req.Notes)
-	if err != nil {
-		switch err.Error() {
-		case "expense not found":
-			return response.Error(c, fiber.StatusNotFound, err.Error())
-		case "expense is not pending":
-			return response.Error(c, fiber.StatusBadRequest, err.Error())
-		}
-		return response.Error(c, fiber.StatusInternalServerError, "failed to reject expense")
-	}
-
-	return response.Success(c, fiber.StatusOK, "expense rejected successfully", result)
-}

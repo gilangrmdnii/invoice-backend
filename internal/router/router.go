@@ -114,8 +114,6 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	expenses.Get("/:id", expenseHandler.GetByID)
 	expenses.Put("/:id", expenseHandler.Update)
 	expenses.Delete("/:id", expenseHandler.Delete)
-	expenses.Post("/:id/approve", middleware.RequireRoles("FINANCE", "OWNER"), expenseHandler.Approve)
-	expenses.Post("/:id/reject", middleware.RequireRoles("FINANCE", "OWNER"), expenseHandler.Reject)
 
 	// Budget request routes
 	budgetRequests := protected.Group("/budget-requests")

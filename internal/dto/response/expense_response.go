@@ -9,18 +9,7 @@ type ExpenseResponse struct {
 	Amount      float64   `json:"amount"`
 	Category    string    `json:"category"`
 	ReceiptURL  string    `json:"receipt_url,omitempty"`
-	Status      string    `json:"status"`
 	CreatedBy   uint64    `json:"created_by"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
-}
-
-type ExpenseApprovalResponse struct {
-	ID         uint64    `json:"id"`
-	ExpenseID  uint64    `json:"expense_id"`
-	ApprovedBy uint64    `json:"approved_by"`
-	Status     string    `json:"status"`
-	Notes      string    `json:"notes,omitempty"`
-	ProofURL   string    `json:"proof_url,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
 }

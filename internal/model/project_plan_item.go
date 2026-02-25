@@ -11,6 +11,8 @@ type ProjectPlanItem struct {
 	Quantity    float64           `json:"quantity"`
 	Unit        string            `json:"unit"`
 	UnitPrice   float64           `json:"unit_price"`
+	Days        int               `json:"days"`
+	Amount      float64           `json:"amount"`
 	Subtotal    float64           `json:"subtotal"`
 	SortOrder   int               `json:"sort_order"`
 	CreatedAt   time.Time         `json:"created_at"`

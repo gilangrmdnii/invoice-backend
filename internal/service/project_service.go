@@ -217,6 +217,8 @@ func (s *ProjectService) UpdatePlan(ctx context.Context, projectID uint64, req *
 				Quantity:    child.Quantity,
 				Unit:        child.Unit,
 				UnitPrice:   child.UnitPrice,
+				Days:        child.Days,
+				Amount:      child.Amount,
 				Subtotal:    child.Quantity * child.UnitPrice,
 			})
 		}
@@ -230,6 +232,8 @@ func (s *ProjectService) UpdatePlan(ctx context.Context, projectID uint64, req *
 			Quantity:    standalone.Quantity,
 			Unit:        standalone.Unit,
 			UnitPrice:   standalone.UnitPrice,
+			Days:        standalone.Days,
+			Amount:      standalone.Amount,
 			Subtotal:    standalone.Quantity * standalone.UnitPrice,
 		})
 	}

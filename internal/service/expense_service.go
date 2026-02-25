@@ -113,7 +113,6 @@ func (s *ExpenseService) Create(ctx context.Context, req *request.CreateExpenseR
 		Amount:      req.Amount,
 		Category:    req.Category,
 		ReceiptURL:  req.ReceiptURL,
-		Status:      model.ExpenseStatusPending,
 		CreatedBy:   userID,
 	}
 
@@ -125,7 +124,7 @@ func (s *ExpenseService) Create(ctx context.Context, req *request.CreateExpenseR
 	// Audit + Notification (fire-and-forget)
 	s.logAudit(ctx, userID, "CREATE", "expense", id, fmt.Sprintf("amount=%.2f, category=%s", expense.Amount, expense.Category))
 	s.notifyRoles(ctx, []string{"FINANCE", "OWNER"}, "New Expense Created",
-		fmt.Sprintf("A new expense of %.2f has been submitted for approval", expense.Amount),
+		fmt.Sprintf("A new expense of %.2f has been recorded", expense.Amount),
 		model.NotifExpenseCreated, id)
 
 	return &response.ExpenseResponse{
@@ -135,7 +134,6 @@ func (s *ExpenseService) Create(ctx context.Context, req *request.CreateExpenseR
 		Amount:      expense.Amount,
 		Category:    expense.Category,
 		ReceiptURL:  expense.ReceiptURL,
-		Status:      string(expense.Status),
 		CreatedBy:   userID,
 	}, nil
 }
@@ -198,11 +196,6 @@ func (s *ExpenseService) Update(ctx context.Context, id uint64, req *request.Upd
 		return nil, fmt.Errorf("not authorized to update this expense")
 	}
 
-	// Can only update PENDING expenses
-	if expense.Status != model.ExpenseStatusPending {
-		return nil, fmt.Errorf("only pending expenses can be updated")
-	}
-
 	if req.Description != "" {
 		expense.Description = req.Description
 	}
@@ -245,11 +238,6 @@ func (s *ExpenseService) Delete(ctx context.Context, id uint64, userID uint64, r
 		return fmt.Errorf("not authorized to delete this expense")
 	}
 
-	// Can only delete PENDING expenses
-	if expense.Status != model.ExpenseStatusPending {
-		return fmt.Errorf("only pending expenses can be deleted")
-	}
-
 	if err := s.expenseRepo.Delete(ctx, id); err != nil {
 		return err
 	}
@@ -260,74 +248,6 @@ func (s *ExpenseService) Delete(ctx context.Context, id uint64, userID uint64, r
 	return nil
 }
 
-func (s *ExpenseService) Approve(ctx context.Context, id uint64, approvedBy uint64, notes string, proofURL string) (*response.ExpenseResponse, error) {
-	// Get expense before approve to know creator
-	expense, err := s.expenseRepo.FindByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("expense not found")
-		}
-		return nil, err
-	}
-
-	if err := s.expenseRepo.ApproveExpense(ctx, id, approvedBy, notes, proofURL); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("expense not found")
-		}
-		if err.Error() == "expense is not pending" {
-			return nil, err
-		}
-		return nil, fmt.Errorf("approve expense: %w", err)
-	}
-
-	// Audit + Notification
-	s.logAudit(ctx, approvedBy, "APPROVE", "expense", id, notes)
-	s.notifyUser(ctx, expense.CreatedBy, "Expense Approved",
-		fmt.Sprintf("Your expense of %.2f has been approved", expense.Amount),
-		model.NotifExpenseApproved, id)
-
-	updated, err := s.expenseRepo.FindByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	resp := toExpenseResponse(updated)
-	return &resp, nil
-}
-
-func (s *ExpenseService) Reject(ctx context.Context, id uint64, approvedBy uint64, notes string) (*response.ExpenseResponse, error) {
-	// Get expense before reject to know creator
-	expense, err := s.expenseRepo.FindByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("expense not found")
-		}
-		return nil, err
-	}
-
-	if err := s.expenseRepo.RejectExpense(ctx, id, approvedBy, notes); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("expense not found")
-		}
-		if err.Error() == "expense is not pending" {
-			return nil, err
-		}
-		return nil, fmt.Errorf("reject expense: %w", err)
-	}
-
-	// Audit + Notification
-	s.logAudit(ctx, approvedBy, "REJECT", "expense", id, notes)
-	s.notifyUser(ctx, expense.CreatedBy, "Expense Rejected",
-		fmt.Sprintf("Your expense of %.2f has been rejected", expense.Amount),
-		model.NotifExpenseRejected, id)
-
-	updated, err := s.expenseRepo.FindByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	resp := toExpenseResponse(updated)
-	return &resp, nil
-}
-
 func toExpenseResponse(e *model.Expense) response.ExpenseResponse {
 	return response.ExpenseResponse{
 		ID:          e.ID,
@@ -336,7 +256,6 @@ func toExpenseResponse(e *model.Expense) response.ExpenseResponse {
 		Amount:      e.Amount,
 		Category:    e.Category,
 		ReceiptURL:  e.ReceiptURL,
-		Status:      string(e.Status),
 		CreatedBy:   e.CreatedBy,
 		CreatedAt:   e.CreatedAt,
 		UpdatedAt:   e.UpdatedAt,

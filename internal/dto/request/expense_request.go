@@ -14,8 +14,3 @@ type UpdateExpenseRequest struct {
 	Category    string  `json:"category" validate:"omitempty,max=255"`
 	ReceiptURL  string  `json:"receipt_url" validate:"omitempty,max=500"`
 }
-
-type ApproveExpenseRequest struct {
-	Notes    string `json:"notes" validate:"max=1000"`
-	ProofURL string `json:"proof_url" validate:"required,max=500"`
-}
