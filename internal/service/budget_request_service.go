@@ -110,11 +110,13 @@ func (s *BudgetRequestService) Create(ctx context.Context, req *request.CreateBu
 		}
 	}
 
+	proofURL := req.ProofURL
 	br := &model.BudgetRequest{
 		ProjectID:   req.ProjectID,
 		RequestedBy: userID,
 		Amount:      req.Amount,
 		Reason:      req.Reason,
+		ProofURL:    &proofURL,
 		Status:      model.BudgetRequestPending,
 	}
 
@@ -135,6 +137,7 @@ func (s *BudgetRequestService) Create(ctx context.Context, req *request.CreateBu
 		RequestedBy: br.RequestedBy,
 		Amount:      br.Amount,
 		Reason:      br.Reason,
+		ProofURL:    br.ProofURL,
 		Status:      string(br.Status),
 	}, nil
 }
@@ -183,7 +186,7 @@ func (s *BudgetRequestService) GetByID(ctx context.Context, id uint64) (*respons
 	return &resp, nil
 }
 
-func (s *BudgetRequestService) Approve(ctx context.Context, id, approvedBy uint64) (*response.BudgetRequestResponse, error) {
+func (s *BudgetRequestService) Approve(ctx context.Context, id, approvedBy uint64, notes, proofURL string) (*response.BudgetRequestResponse, error) {
 	// Get before approve to know requester
 	br, err := s.budgetRequestRepo.FindByID(ctx, id)
 	if err != nil {
@@ -193,7 +196,7 @@ func (s *BudgetRequestService) Approve(ctx context.Context, id, approvedBy uint6
 		return nil, err
 	}
 
-	if err := s.budgetRequestRepo.ApproveBudgetRequest(ctx, id, approvedBy); err != nil {
+	if err := s.budgetRequestRepo.ApproveBudgetRequest(ctx, id, approvedBy, notes, proofURL); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("budget request not found")
 		}
@@ -222,7 +225,7 @@ func (s *BudgetRequestService) Approve(ctx context.Context, id, approvedBy uint6
 	return &resp, nil
 }
 
-func (s *BudgetRequestService) Reject(ctx context.Context, id, approvedBy uint64) (*response.BudgetRequestResponse, error) {
+func (s *BudgetRequestService) Reject(ctx context.Context, id, approvedBy uint64, notes, proofURL string) (*response.BudgetRequestResponse, error) {
 	// Get before reject to know requester
 	br, err := s.budgetRequestRepo.FindByID(ctx, id)
 	if err != nil {
@@ -232,7 +235,7 @@ func (s *BudgetRequestService) Reject(ctx context.Context, id, approvedBy uint64
 		return nil, err
 	}
 
-	if err := s.budgetRequestRepo.RejectBudgetRequest(ctx, id, approvedBy); err != nil {
+	if err := s.budgetRequestRepo.RejectBudgetRequest(ctx, id, approvedBy, notes, proofURL); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("budget request not found")
 		}
@@ -258,14 +261,17 @@ func (s *BudgetRequestService) Reject(ctx context.Context, id, approvedBy uint64
 
 func toBudgetRequestResponse(br *model.BudgetRequest) response.BudgetRequestResponse {
 	return response.BudgetRequestResponse{
-		ID:          br.ID,
-		ProjectID:   br.ProjectID,
-		RequestedBy: br.RequestedBy,
-		Amount:      br.Amount,
-		Reason:      br.Reason,
-		Status:      string(br.Status),
-		ApprovedBy:  br.ApprovedBy,
-		CreatedAt:   br.CreatedAt,
-		UpdatedAt:   br.UpdatedAt,
+		ID:               br.ID,
+		ProjectID:        br.ProjectID,
+		RequestedBy:      br.RequestedBy,
+		Amount:           br.Amount,
+		Reason:           br.Reason,
+		ProofURL:         br.ProofURL,
+		Status:           string(br.Status),
+		ApprovedBy:       br.ApprovedBy,
+		ApprovalNotes:    br.ApprovalNotes,
+		ApprovalProofURL: br.ApprovalProofURL,
+		CreatedAt:        br.CreatedAt,
+		UpdatedAt:        br.UpdatedAt,
 	}
 }

@@ -17,9 +17,9 @@ func NewBudgetRequestRepository(db *sql.DB) *BudgetRequestRepository {
 }
 
 func (r *BudgetRequestRepository) Create(ctx context.Context, br *model.BudgetRequest) (uint64, error) {
-	query := `INSERT INTO budget_requests (project_id, requested_by, amount, reason, status) VALUES (?, ?, ?, ?, ?)`
+	query := `INSERT INTO budget_requests (project_id, requested_by, amount, reason, proof_url, status) VALUES (?, ?, ?, ?, ?, ?)`
 	result, err := r.db.ExecContext(ctx, query,
-		br.ProjectID, br.RequestedBy, br.Amount, br.Reason, br.Status,
+		br.ProjectID, br.RequestedBy, br.Amount, br.Reason, br.ProofURL, br.Status,
 	)
 	if err != nil {
 		return 0, err
@@ -32,10 +32,10 @@ func (r *BudgetRequestRepository) Create(ctx context.Context, br *model.BudgetRe
 }
 
 func (r *BudgetRequestRepository) FindByID(ctx context.Context, id uint64) (*model.BudgetRequest, error) {
-	query := `SELECT id, project_id, requested_by, amount, reason, status, approved_by, created_at, updated_at FROM budget_requests WHERE id = ?`
+	query := `SELECT id, project_id, requested_by, amount, reason, proof_url, status, approved_by, approval_notes, approval_proof_url, created_at, updated_at FROM budget_requests WHERE id = ?`
 	br := &model.BudgetRequest{}
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&br.ID, &br.ProjectID, &br.RequestedBy, &br.Amount, &br.Reason, &br.Status, &br.ApprovedBy, &br.CreatedAt, &br.UpdatedAt,
+		&br.ID, &br.ProjectID, &br.RequestedBy, &br.Amount, &br.Reason, &br.ProofURL, &br.Status, &br.ApprovedBy, &br.ApprovalNotes, &br.ApprovalProofURL, &br.CreatedAt, &br.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func (r *BudgetRequestRepository) FindByID(ctx context.Context, id uint64) (*mod
 }
 
 func (r *BudgetRequestRepository) FindAll(ctx context.Context) ([]model.BudgetRequest, error) {
-	query := `SELECT id, project_id, requested_by, amount, reason, status, approved_by, created_at, updated_at FROM budget_requests ORDER BY created_at DESC`
+	query := `SELECT id, project_id, requested_by, amount, reason, proof_url, status, approved_by, approval_notes, approval_proof_url, created_at, updated_at FROM budget_requests ORDER BY created_at DESC`
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func (r *BudgetRequestRepository) FindAll(ctx context.Context) ([]model.BudgetRe
 	var requests []model.BudgetRequest
 	for rows.Next() {
 		var br model.BudgetRequest
-		if err := rows.Scan(&br.ID, &br.ProjectID, &br.RequestedBy, &br.Amount, &br.Reason, &br.Status, &br.ApprovedBy, &br.CreatedAt, &br.UpdatedAt); err != nil {
+		if err := rows.Scan(&br.ID, &br.ProjectID, &br.RequestedBy, &br.Amount, &br.Reason, &br.ProofURL, &br.Status, &br.ApprovedBy, &br.ApprovalNotes, &br.ApprovalProofURL, &br.CreatedAt, &br.UpdatedAt); err != nil {
 			return nil, err
 		}
 		requests = append(requests, br)
@@ -67,7 +67,7 @@ func (r *BudgetRequestRepository) FindByProjectIDs(ctx context.Context, projectI
 		return nil, nil
 	}
 	placeholders, args := buildInClause(projectIDs)
-	query := fmt.Sprintf(`SELECT id, project_id, requested_by, amount, reason, status, approved_by, created_at, updated_at FROM budget_requests WHERE project_id IN (%s) ORDER BY created_at DESC`, placeholders)
+	query := fmt.Sprintf(`SELECT id, project_id, requested_by, amount, reason, proof_url, status, approved_by, approval_notes, approval_proof_url, created_at, updated_at FROM budget_requests WHERE project_id IN (%s) ORDER BY created_at DESC`, placeholders)
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func (r *BudgetRequestRepository) FindByProjectIDs(ctx context.Context, projectI
 	var requests []model.BudgetRequest
 	for rows.Next() {
 		var br model.BudgetRequest
-		if err := rows.Scan(&br.ID, &br.ProjectID, &br.RequestedBy, &br.Amount, &br.Reason, &br.Status, &br.ApprovedBy, &br.CreatedAt, &br.UpdatedAt); err != nil {
+		if err := rows.Scan(&br.ID, &br.ProjectID, &br.RequestedBy, &br.Amount, &br.Reason, &br.ProofURL, &br.Status, &br.ApprovedBy, &br.ApprovalNotes, &br.ApprovalProofURL, &br.CreatedAt, &br.UpdatedAt); err != nil {
 			return nil, err
 		}
 		requests = append(requests, br)
@@ -85,7 +85,7 @@ func (r *BudgetRequestRepository) FindByProjectIDs(ctx context.Context, projectI
 	return requests, rows.Err()
 }
 
-func (r *BudgetRequestRepository) ApproveBudgetRequest(ctx context.Context, id, approvedBy uint64) error {
+func (r *BudgetRequestRepository) ApproveBudgetRequest(ctx context.Context, id, approvedBy uint64, notes, proofURL string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -106,10 +106,10 @@ func (r *BudgetRequestRepository) ApproveBudgetRequest(ctx context.Context, id, 
 		return fmt.Errorf("budget request is not pending")
 	}
 
-	// Update budget request status
+	// Update budget request status with approval details
 	_, err = tx.ExecContext(ctx,
-		`UPDATE budget_requests SET status = 'APPROVED', approved_by = ? WHERE id = ?`,
-		approvedBy, id,
+		`UPDATE budget_requests SET status = 'APPROVED', approved_by = ?, approval_notes = ?, approval_proof_url = ? WHERE id = ?`,
+		approvedBy, notes, proofURL, id,
 	)
 	if err != nil {
 		return fmt.Errorf("update budget request: %w", err)
@@ -130,7 +130,7 @@ func (r *BudgetRequestRepository) ApproveBudgetRequest(ctx context.Context, id, 
 	return nil
 }
 
-func (r *BudgetRequestRepository) RejectBudgetRequest(ctx context.Context, id, approvedBy uint64) error {
+func (r *BudgetRequestRepository) RejectBudgetRequest(ctx context.Context, id, approvedBy uint64, notes, proofURL string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -149,10 +149,10 @@ func (r *BudgetRequestRepository) RejectBudgetRequest(ctx context.Context, id, a
 		return fmt.Errorf("budget request is not pending")
 	}
 
-	// Update budget request status (no budget change)
+	// Update budget request status with rejection details
 	_, err = tx.ExecContext(ctx,
-		`UPDATE budget_requests SET status = 'REJECTED', approved_by = ? WHERE id = ?`,
-		approvedBy, id,
+		`UPDATE budget_requests SET status = 'REJECTED', approved_by = ?, approval_notes = ?, approval_proof_url = ? WHERE id = ?`,
+		approvedBy, notes, proofURL, id,
 	)
 	if err != nil {
 		return fmt.Errorf("update budget request: %w", err)

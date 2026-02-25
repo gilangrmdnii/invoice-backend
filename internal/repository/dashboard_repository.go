@@ -12,17 +12,15 @@ type ProjectSummaryRow struct {
 }
 
 type BudgetSummaryRow struct {
-	TotalBudget float64
-	TotalSpent  float64
-	Remaining   float64
+	TotalBudget     float64
+	TotalPlanBudget float64
+	TotalSpent      float64
+	Remaining       float64
 }
 
 type ExpenseSummaryRow struct {
-	TotalExpenses    int64
-	PendingExpenses  int64
-	ApprovedExpenses int64
-	RejectedExpenses int64
-	TotalAmount      float64
+	TotalExpenses int64
+	TotalAmount   float64
 }
 
 type BudgetRequestSummaryRow struct {
@@ -74,14 +72,22 @@ func (r *DashboardRepository) GetBudgetSummary(ctx context.Context, projectIDs [
 
 	if len(projectIDs) > 0 {
 		placeholders, pArgs := buildInClause(projectIDs)
-		query = fmt.Sprintf(`SELECT COALESCE(SUM(total_budget),0), COALESCE(SUM(spent_amount),0) FROM project_budgets WHERE project_id IN (%s)`, placeholders)
-		args = pArgs
+		query = fmt.Sprintf(`SELECT COALESCE(SUM(pb.total_budget),0), COALESCE(SUM(pb.spent_amount),0),
+			COALESCE((SELECT SUM(ppi.subtotal) FROM project_plan_items ppi
+				INNER JOIN project_plans pp ON pp.id = ppi.plan_id
+				WHERE pp.project_id IN (%s) AND ppi.is_label = false), 0)
+			FROM project_budgets pb WHERE pb.project_id IN (%s)`, placeholders, placeholders)
+		args = append(pArgs, pArgs...)
 	} else {
-		query = `SELECT COALESCE(SUM(total_budget),0), COALESCE(SUM(spent_amount),0) FROM project_budgets`
+		query = `SELECT COALESCE(SUM(pb.total_budget),0), COALESCE(SUM(pb.spent_amount),0),
+			COALESCE((SELECT SUM(ppi.subtotal) FROM project_plan_items ppi
+				INNER JOIN project_plans pp ON pp.id = ppi.plan_id
+				WHERE ppi.is_label = false), 0)
+			FROM project_budgets pb`
 	}
 
 	row := &BudgetSummaryRow{}
-	err := r.db.QueryRowContext(ctx, query, args...).Scan(&row.TotalBudget, &row.TotalSpent)
+	err := r.db.QueryRowContext(ctx, query, args...).Scan(&row.TotalBudget, &row.TotalSpent, &row.TotalPlanBudget)
 	if err != nil {
 		return nil, err
 	}
@@ -95,31 +101,17 @@ func (r *DashboardRepository) GetExpenseSummary(ctx context.Context, projectIDs 
 
 	if len(projectIDs) > 0 {
 		placeholders, pArgs := buildInClause(projectIDs)
-		query = fmt.Sprintf(`SELECT COUNT(1),
-			SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END),
-			SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END),
-			SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END),
-			COALESCE(SUM(amount),0)
-			FROM expenses WHERE project_id IN (%s)`, placeholders)
+		query = fmt.Sprintf(`SELECT COUNT(1), COALESCE(SUM(amount),0) FROM expenses WHERE project_id IN (%s)`, placeholders)
 		args = pArgs
 	} else {
-		query = `SELECT COUNT(1),
-			SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END),
-			SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END),
-			SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END),
-			COALESCE(SUM(amount),0)
-			FROM expenses`
+		query = `SELECT COUNT(1), COALESCE(SUM(amount),0) FROM expenses`
 	}
 
 	row := &ExpenseSummaryRow{}
-	var pending, approved, rejected sql.NullInt64
-	err := r.db.QueryRowContext(ctx, query, args...).Scan(&row.TotalExpenses, &pending, &approved, &rejected, &row.TotalAmount)
+	err := r.db.QueryRowContext(ctx, query, args...).Scan(&row.TotalExpenses, &row.TotalAmount)
 	if err != nil {
 		return nil, err
 	}
-	row.PendingExpenses = pending.Int64
-	row.ApprovedExpenses = approved.Int64
-	row.RejectedExpenses = rejected.Int64
 	return row, nil
 }
 

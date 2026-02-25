@@ -69,16 +69,14 @@ func (s *DashboardService) GetDashboard(ctx context.Context, userID uint64, role
 			ActiveProjects: projectSummary.ActiveProjects,
 		},
 		Budget: response.BudgetSummary{
-			TotalBudget: budgetSummary.TotalBudget,
-			TotalSpent:  budgetSummary.TotalSpent,
-			Remaining:   budgetSummary.Remaining,
+			TotalBudget:     budgetSummary.TotalBudget,
+			TotalPlanBudget: budgetSummary.TotalPlanBudget,
+			TotalSpent:      budgetSummary.TotalSpent,
+			Remaining:       budgetSummary.Remaining,
 		},
 		Expenses: response.ExpenseSummary{
-			TotalExpenses:    expenseSummary.TotalExpenses,
-			PendingExpenses:  expenseSummary.PendingExpenses,
-			ApprovedExpenses: expenseSummary.ApprovedExpenses,
-			RejectedExpenses: expenseSummary.RejectedExpenses,
-			TotalAmount:      expenseSummary.TotalAmount,
+			TotalExpenses: expenseSummary.TotalExpenses,
+			TotalAmount:   expenseSummary.TotalAmount,
 		},
 		BudgetRequests: response.BudgetRequestSummary{
 			TotalRequests:    budgetRequestSummary.TotalRequests,

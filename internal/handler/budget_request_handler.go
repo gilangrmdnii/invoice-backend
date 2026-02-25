@@ -78,9 +78,14 @@ func (h *BudgetRequestHandler) Approve(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusBadRequest, "invalid budget request id")
 	}
 
+	var req request.ApproveBudgetRequestRequest
+	if err := validator.ParseAndValidate(c, &req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err.Error())
+	}
+
 	userID := middleware.GetUserID(c)
 
-	result, err := h.budgetRequestService.Approve(c.Context(), id, userID)
+	result, err := h.budgetRequestService.Approve(c.Context(), id, userID, req.Notes, req.ProofURL)
 	if err != nil {
 		switch err.Error() {
 		case "budget request not found":
@@ -100,9 +105,14 @@ func (h *BudgetRequestHandler) Reject(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusBadRequest, "invalid budget request id")
 	}
 
+	var req request.RejectBudgetRequestRequest
+	if err := validator.ParseAndValidate(c, &req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err.Error())
+	}
+
 	userID := middleware.GetUserID(c)
 
-	result, err := h.budgetRequestService.Reject(c.Context(), id, userID)
+	result, err := h.budgetRequestService.Reject(c.Context(), id, userID, req.Notes, req.ProofURL)
 	if err != nil {
 		switch err.Error() {
 		case "budget request not found":

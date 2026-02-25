@@ -14,17 +14,15 @@ type ProjectSummary struct {
 }
 
 type BudgetSummary struct {
-	TotalBudget float64 `json:"total_budget"`
-	TotalSpent  float64 `json:"total_spent"`
-	Remaining   float64 `json:"remaining"`
+	TotalBudget     float64 `json:"total_budget"`
+	TotalPlanBudget float64 `json:"total_plan_budget"`
+	TotalSpent      float64 `json:"total_spent"`
+	Remaining       float64 `json:"remaining"`
 }
 
 type ExpenseSummary struct {
-	TotalExpenses    int64   `json:"total_expenses"`
-	PendingExpenses  int64   `json:"pending_expenses"`
-	ApprovedExpenses int64   `json:"approved_expenses"`
-	RejectedExpenses int64   `json:"rejected_expenses"`
-	TotalAmount      float64 `json:"total_amount"`
+	TotalExpenses int64   `json:"total_expenses"`
+	TotalAmount   float64 `json:"total_amount"`
 }
 
 type BudgetRequestSummary struct {
