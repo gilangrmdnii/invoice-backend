@@ -139,7 +139,7 @@ func (h *ExpenseHandler) Approve(c *fiber.Ctx) error {
 
 	userID := middleware.GetUserID(c)
 
-	result, err := h.expenseService.Approve(c.Context(), id, userID, req.Notes)
+	result, err := h.expenseService.Approve(c.Context(), id, userID, req.Notes, req.ProofURL)
 	if err != nil {
 		switch err.Error() {
 		case "expense not found":

@@ -29,6 +29,8 @@ func RunMigrations(db *sql.DB, migrationFS embed.FS) error {
 		"000002_invoices.sql":               `SELECT 1 FROM invoices LIMIT 1`,
 		"000003_enhanced_invoices.sql":      `SELECT invoice_type FROM invoices LIMIT 1`,
 		"000006_project_plan_items.sql":     `SELECT 1 FROM project_plan_items LIMIT 1`,
+		"000007_expense_approval_proof.sql": `SELECT proof_url FROM expense_approvals LIMIT 1`,
+		"000008_invoice_dual_tax.sql":       `SELECT ppn_percentage FROM invoices LIMIT 1`,
 	}
 	for name, checkSQL := range baselineChecks {
 		var alreadyApplied int

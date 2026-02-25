@@ -260,7 +260,7 @@ func (s *ExpenseService) Delete(ctx context.Context, id uint64, userID uint64, r
 	return nil
 }
 
-func (s *ExpenseService) Approve(ctx context.Context, id uint64, approvedBy uint64, notes string) (*response.ExpenseResponse, error) {
+func (s *ExpenseService) Approve(ctx context.Context, id uint64, approvedBy uint64, notes string, proofURL string) (*response.ExpenseResponse, error) {
 	// Get expense before approve to know creator
 	expense, err := s.expenseRepo.FindByID(ctx, id)
 	if err != nil {
@@ -270,7 +270,7 @@ func (s *ExpenseService) Approve(ctx context.Context, id uint64, approvedBy uint
 		return nil, err
 	}
 
-	if err := s.expenseRepo.ApproveExpense(ctx, id, approvedBy, notes); err != nil {
+	if err := s.expenseRepo.ApproveExpense(ctx, id, approvedBy, notes, proofURL); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("expense not found")
 		}

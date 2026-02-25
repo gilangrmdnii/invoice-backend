@@ -160,9 +160,10 @@ func (s *InvoiceService) Create(ctx context.Context, req *request.CreateInvoiceR
 		})
 	}
 
-	// Calculate tax and total
-	taxAmount := subtotal * req.TaxPercentage / 100
-	total := subtotal + taxAmount
+	// Calculate dual tax and total
+	ppnAmount := subtotal * req.PPNPercentage / 100
+	pphAmount := subtotal * req.PPHPercentage / 100
+	total := subtotal + ppnAmount - pphAmount
 
 	inv := &model.Invoice{
 		InvoiceType:      model.InvoiceType(req.InvoiceType),
@@ -174,8 +175,10 @@ func (s *InvoiceService) Create(ctx context.Context, req *request.CreateInvoiceR
 		InvoiceDate:      invoiceDate,
 		DPPercentage:     req.DPPercentage,
 		Subtotal:         subtotal,
-		TaxPercentage:    req.TaxPercentage,
-		TaxAmount:        taxAmount,
+		PPNPercentage:    req.PPNPercentage,
+		PPNAmount:        ppnAmount,
+		PPHPercentage:    req.PPHPercentage,
+		PPHAmount:        pphAmount,
 		Amount:           total,
 		Notes:            req.Notes,
 		Language:         req.Language,
@@ -390,17 +393,29 @@ func (s *InvoiceService) Update(ctx context.Context, id uint64, req *request.Upd
 		}
 		inv.Subtotal = subtotal
 
-		taxPct := inv.TaxPercentage
-		if req.TaxPercentage != nil {
-			taxPct = *req.TaxPercentage
+		ppnPct := inv.PPNPercentage
+		if req.PPNPercentage != nil {
+			ppnPct = *req.PPNPercentage
 		}
-		inv.TaxPercentage = taxPct
-		inv.TaxAmount = subtotal * taxPct / 100
-		inv.Amount = subtotal + inv.TaxAmount
-	} else if req.TaxPercentage != nil {
-		inv.TaxPercentage = *req.TaxPercentage
-		inv.TaxAmount = inv.Subtotal * *req.TaxPercentage / 100
-		inv.Amount = inv.Subtotal + inv.TaxAmount
+		pphPct := inv.PPHPercentage
+		if req.PPHPercentage != nil {
+			pphPct = *req.PPHPercentage
+		}
+		inv.PPNPercentage = ppnPct
+		inv.PPNAmount = subtotal * ppnPct / 100
+		inv.PPHPercentage = pphPct
+		inv.PPHAmount = subtotal * pphPct / 100
+		inv.Amount = subtotal + inv.PPNAmount - inv.PPHAmount
+	} else if req.PPNPercentage != nil || req.PPHPercentage != nil {
+		if req.PPNPercentage != nil {
+			inv.PPNPercentage = *req.PPNPercentage
+		}
+		if req.PPHPercentage != nil {
+			inv.PPHPercentage = *req.PPHPercentage
+		}
+		inv.PPNAmount = inv.Subtotal * inv.PPNPercentage / 100
+		inv.PPHAmount = inv.Subtotal * inv.PPHPercentage / 100
+		inv.Amount = inv.Subtotal + inv.PPNAmount - inv.PPHAmount
 	}
 
 	if err := s.invoiceRepo.Update(ctx, inv, items); err != nil {
@@ -508,9 +523,11 @@ func toInvoiceResponse(inv *model.Invoice) response.InvoiceResponse {
 		PONumber:         inv.PONumber,
 		InvoiceDate:      inv.InvoiceDate.Format("2006-01-02"),
 		DPPercentage:     inv.DPPercentage,
-		Subtotal:         inv.Subtotal,
-		TaxPercentage:    inv.TaxPercentage,
-		TaxAmount:        inv.TaxAmount,
+		Subtotal:      inv.Subtotal,
+		PPNPercentage: inv.PPNPercentage,
+		PPNAmount:     inv.PPNAmount,
+		PPHPercentage: inv.PPHPercentage,
+		PPHAmount:     inv.PPHAmount,
 		Notes:            inv.Notes,
 		Language:         inv.Language,
 		CreatedBy:        inv.CreatedBy,

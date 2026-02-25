@@ -39,9 +39,11 @@ type Invoice struct {
 	InvoiceDate      time.Time     `json:"invoice_date"`
 	DueDate          *time.Time    `json:"due_date,omitempty"`
 	DPPercentage     *float64      `json:"dp_percentage,omitempty"`
-	Subtotal         float64       `json:"subtotal"`
-	TaxPercentage    float64       `json:"tax_percentage"`
-	TaxAmount        float64       `json:"tax_amount"`
+	Subtotal       float64 `json:"subtotal"`
+	PPNPercentage  float64 `json:"ppn_percentage"`
+	PPNAmount      float64 `json:"ppn_amount"`
+	PPHPercentage  float64 `json:"pph_percentage"`
+	PPHAmount      float64 `json:"pph_amount"`
 	Notes            string        `json:"notes,omitempty"`
 	Language         string        `json:"language"`
 	CreatedBy        uint64        `json:"created_by"`

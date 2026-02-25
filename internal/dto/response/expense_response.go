@@ -21,5 +21,6 @@ type ExpenseApprovalResponse struct {
 	ApprovedBy uint64    `json:"approved_by"`
 	Status     string    `json:"status"`
 	Notes      string    `json:"notes,omitempty"`
+	ProofURL   string    `json:"proof_url,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
 }

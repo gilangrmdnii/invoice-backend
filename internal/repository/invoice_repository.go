@@ -29,11 +29,11 @@ func (r *InvoiceRepository) Create(ctx context.Context, inv *model.Invoice, item
 	result, err := tx.ExecContext(ctx,
 		`INSERT INTO invoices (invoice_number, invoice_type, project_id, amount, paid_amount, status, payment_status, file_url,
 			recipient_name, recipient_address, attention, po_number, invoice_date, due_date,
-			dp_percentage, subtotal, tax_percentage, tax_amount, notes, language, created_by)
-		VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			dp_percentage, subtotal, ppn_percentage, ppn_amount, pph_percentage, pph_amount, notes, language, created_by)
+		VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		tempNumber, inv.InvoiceType, inv.ProjectID, inv.Amount, model.InvoiceStatusPending, inv.PaymentStatus, inv.FileURL,
 		inv.RecipientName, inv.RecipientAddress, inv.Attention, inv.PONumber, inv.InvoiceDate, inv.DueDate,
-		inv.DPPercentage, inv.Subtotal, inv.TaxPercentage, inv.TaxAmount, inv.Notes, inv.Language, inv.CreatedBy,
+		inv.DPPercentage, inv.Subtotal, inv.PPNPercentage, inv.PPNAmount, inv.PPHPercentage, inv.PPHAmount, inv.Notes, inv.Language, inv.CreatedBy,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("insert invoice: %w", err)
@@ -113,7 +113,7 @@ func (r *InvoiceRepository) Create(ctx context.Context, inv *model.Invoice, item
 func (r *InvoiceRepository) FindByID(ctx context.Context, id uint64) (*model.Invoice, error) {
 	query := `SELECT id, invoice_number, invoice_type, project_id, amount, paid_amount, status, payment_status, file_url,
 		recipient_name, recipient_address, attention, po_number, invoice_date, due_date,
-		dp_percentage, subtotal, tax_percentage, tax_amount, notes, language,
+		dp_percentage, subtotal, ppn_percentage, ppn_amount, pph_percentage, pph_amount, notes, language,
 		created_by, approved_by, reject_notes, created_at, updated_at
 	FROM invoices WHERE id = ?`
 
@@ -126,7 +126,7 @@ func (r *InvoiceRepository) FindByID(ctx context.Context, id uint64) (*model.Inv
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&inv.ID, &inv.InvoiceNumber, &inv.InvoiceType, &inv.ProjectID, &inv.Amount, &inv.PaidAmount, &inv.Status, &inv.PaymentStatus, &fileURL,
 		&inv.RecipientName, &recipientAddr, &attention, &poNumber, &inv.InvoiceDate, &dueDate,
-		&dpPercentage, &inv.Subtotal, &inv.TaxPercentage, &inv.TaxAmount, &notes, &inv.Language,
+		&dpPercentage, &inv.Subtotal, &inv.PPNPercentage, &inv.PPNAmount, &inv.PPHPercentage, &inv.PPHAmount, &notes, &inv.Language,
 		&inv.CreatedBy, &approvedBy, &rejectNotes, &inv.CreatedAt, &inv.UpdatedAt,
 	)
 	if err != nil {
@@ -156,7 +156,7 @@ func (r *InvoiceRepository) FindByID(ctx context.Context, id uint64) (*model.Inv
 func (r *InvoiceRepository) FindAll(ctx context.Context) ([]model.Invoice, error) {
 	query := `SELECT id, invoice_number, invoice_type, project_id, amount, paid_amount, status, payment_status, file_url,
 		recipient_name, recipient_address, attention, po_number, invoice_date, due_date,
-		dp_percentage, subtotal, tax_percentage, tax_amount, notes, language,
+		dp_percentage, subtotal, ppn_percentage, ppn_amount, pph_percentage, pph_amount, notes, language,
 		created_by, approved_by, reject_notes, created_at, updated_at
 	FROM invoices ORDER BY created_at DESC`
 
@@ -175,7 +175,7 @@ func (r *InvoiceRepository) FindByProjectIDs(ctx context.Context, projectIDs []u
 	placeholders, args := buildInClause(projectIDs)
 	query := fmt.Sprintf(`SELECT id, invoice_number, invoice_type, project_id, amount, paid_amount, status, payment_status, file_url,
 		recipient_name, recipient_address, attention, po_number, invoice_date, due_date,
-		dp_percentage, subtotal, tax_percentage, tax_amount, notes, language,
+		dp_percentage, subtotal, ppn_percentage, ppn_amount, pph_percentage, pph_amount, notes, language,
 		created_by, approved_by, reject_notes, created_at, updated_at
 	FROM invoices WHERE project_id IN (%s) ORDER BY created_at DESC`, placeholders)
 
@@ -224,11 +224,11 @@ func (r *InvoiceRepository) Update(ctx context.Context, inv *model.Invoice, item
 	_, err = tx.ExecContext(ctx,
 		`UPDATE invoices SET recipient_name = ?, recipient_address = ?, attention = ?,
 			po_number = ?, invoice_date = ?, dp_percentage = ?, subtotal = ?,
-			tax_percentage = ?, tax_amount = ?, amount = ?, notes = ?, language = ?, file_url = ?
+			ppn_percentage = ?, ppn_amount = ?, pph_percentage = ?, pph_amount = ?, amount = ?, notes = ?, language = ?, file_url = ?
 		WHERE id = ?`,
 		inv.RecipientName, inv.RecipientAddress, inv.Attention,
 		inv.PONumber, inv.InvoiceDate, inv.DPPercentage, inv.Subtotal,
-		inv.TaxPercentage, inv.TaxAmount, inv.Amount, inv.Notes, inv.Language, inv.FileURL,
+		inv.PPNPercentage, inv.PPNAmount, inv.PPHPercentage, inv.PPHAmount, inv.Amount, inv.Notes, inv.Language, inv.FileURL,
 		inv.ID,
 	)
 	if err != nil {
@@ -367,7 +367,7 @@ func (r *InvoiceRepository) scanInvoices(rows *sql.Rows) ([]model.Invoice, error
 		if err := rows.Scan(
 			&inv.ID, &inv.InvoiceNumber, &inv.InvoiceType, &inv.ProjectID, &inv.Amount, &inv.PaidAmount, &inv.Status, &inv.PaymentStatus, &fileURL,
 			&inv.RecipientName, &recipientAddr, &attention, &poNumber, &inv.InvoiceDate, &dueDate,
-			&dpPercentage, &inv.Subtotal, &inv.TaxPercentage, &inv.TaxAmount, &notes, &inv.Language,
+			&dpPercentage, &inv.Subtotal, &inv.PPNPercentage, &inv.PPNAmount, &inv.PPHPercentage, &inv.PPHAmount, &notes, &inv.Language,
 			&inv.CreatedBy, &approvedBy, &rejectNotes, &inv.CreatedAt, &inv.UpdatedAt,
 		); err != nil {
 			return nil, err

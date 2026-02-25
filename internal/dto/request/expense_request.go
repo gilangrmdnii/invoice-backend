@@ -5,7 +5,7 @@ type CreateExpenseRequest struct {
 	Description string  `json:"description" validate:"required,min=2,max=1000"`
 	Amount      float64 `json:"amount" validate:"required,gt=0"`
 	Category    string  `json:"category" validate:"required,max=255"`
-	ReceiptURL  string  `json:"receipt_url" validate:"omitempty,max=500"`
+	ReceiptURL  string  `json:"receipt_url" validate:"required,max=500"`
 }
 
 type UpdateExpenseRequest struct {
@@ -16,5 +16,6 @@ type UpdateExpenseRequest struct {
 }
 
 type ApproveExpenseRequest struct {
-	Notes string `json:"notes" validate:"max=1000"`
+	Notes    string `json:"notes" validate:"max=1000"`
+	ProofURL string `json:"proof_url" validate:"required,max=500"`
 }

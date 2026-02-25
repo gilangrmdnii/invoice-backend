@@ -21,8 +21,9 @@ type CreateInvoiceRequest struct {
 	PONumber         string               `json:"po_number" validate:"max=100"`
 	InvoiceDate      string               `json:"invoice_date" validate:"required"`
 	DueDate          string               `json:"due_date" validate:"omitempty"`
-	DPPercentage     *float64             `json:"dp_percentage" validate:"omitempty,gte=0,lte=100"`
-	TaxPercentage    float64              `json:"tax_percentage" validate:"gte=0,lte=100"`
+	DPPercentage  *float64 `json:"dp_percentage" validate:"omitempty,gte=0,lte=100"`
+	PPNPercentage float64 `json:"ppn_percentage" validate:"gte=0,lte=100"`
+	PPHPercentage float64 `json:"pph_percentage" validate:"gte=0,lte=100"`
 	Notes            string               `json:"notes" validate:"max=2000"`
 	Language         string               `json:"language" validate:"required,oneof=ID EN"`
 	FileURL          string               `json:"file_url" validate:"omitempty,max=500"`
@@ -36,8 +37,9 @@ type UpdateInvoiceRequest struct {
 	Attention        string               `json:"attention" validate:"max=255"`
 	PONumber         string               `json:"po_number" validate:"max=100"`
 	InvoiceDate      string               `json:"invoice_date"`
-	DPPercentage     *float64             `json:"dp_percentage" validate:"omitempty,gte=0,lte=100"`
-	TaxPercentage    *float64             `json:"tax_percentage" validate:"omitempty,gte=0,lte=100"`
+	DPPercentage  *float64 `json:"dp_percentage" validate:"omitempty,gte=0,lte=100"`
+	PPNPercentage *float64 `json:"ppn_percentage" validate:"omitempty,gte=0,lte=100"`
+	PPHPercentage *float64 `json:"pph_percentage" validate:"omitempty,gte=0,lte=100"`
 	Notes            string               `json:"notes" validate:"max=2000"`
 	Language         string               `json:"language" validate:"omitempty,oneof=ID EN"`
 	FileURL          string               `json:"file_url" validate:"omitempty,max=500"`

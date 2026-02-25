@@ -107,7 +107,7 @@ func (r *ExpenseRepository) Delete(ctx context.Context, id uint64) error {
 	return nil
 }
 
-func (r *ExpenseRepository) ApproveExpense(ctx context.Context, expenseID, approvedBy uint64, notes string) error {
+func (r *ExpenseRepository) ApproveExpense(ctx context.Context, expenseID, approvedBy uint64, notes string, proofURL string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -138,8 +138,8 @@ func (r *ExpenseRepository) ApproveExpense(ctx context.Context, expenseID, appro
 
 	// Insert approval record
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO expense_approvals (expense_id, approved_by, status, notes) VALUES (?, ?, 'APPROVED', ?)`,
-		expenseID, approvedBy, notes,
+		`INSERT INTO expense_approvals (expense_id, approved_by, status, notes, proof_url) VALUES (?, ?, 'APPROVED', ?, ?)`,
+		expenseID, approvedBy, notes, proofURL,
 	)
 	if err != nil {
 		return fmt.Errorf("insert approval: %w", err)
