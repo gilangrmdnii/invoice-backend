@@ -26,8 +26,8 @@ func NewDashboardService(
 func (s *DashboardService) GetDashboard(ctx context.Context, userID uint64, role string) (*response.DashboardResponse, error) {
 	var projectIDs []uint64
 
-	// SPV only sees their own projects
-	if role == string(model.RoleSPV) {
+	// Field roles (SPV, QC) only see their own projects
+	if model.IsFieldRole(role) {
 		projects, err := s.projectRepo.FindByMemberUserID(ctx, userID)
 		if err != nil {
 			return nil, err

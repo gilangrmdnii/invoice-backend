@@ -212,7 +212,7 @@ func (s *InvoiceService) List(ctx context.Context, userID uint64, role string) (
 	var invoices []model.Invoice
 	var err error
 
-	if role == string(model.RoleSPV) {
+	if model.IsFieldRole(role) {
 		projects, err := s.projectRepo.FindByMemberUserID(ctx, userID)
 		if err != nil {
 			return nil, err

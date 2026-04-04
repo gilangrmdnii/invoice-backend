@@ -107,7 +107,7 @@ func (s *ProjectService) List(ctx context.Context, userID uint64, role string) (
 	var projects []model.Project
 	var err error
 
-	if role == string(model.RoleSPV) {
+	if model.IsFieldRole(role) {
 		projects, err = s.projectRepo.FindByMemberUserID(ctx, userID)
 	} else {
 		projects, err = s.projectRepo.FindAll(ctx)
@@ -257,8 +257,8 @@ func (s *ProjectService) AddMember(ctx context.Context, projectID, userID uint64
 		}
 		return nil, err
 	}
-	if user.Role != model.RoleSPV {
-		return nil, fmt.Errorf("only SPV users can be added as project members")
+	if !model.IsFieldRole(string(user.Role)) {
+		return nil, fmt.Errorf("only SPV or QC users can be added as project members")
 	}
 
 	// Check if already a member

@@ -96,8 +96,8 @@ func (s *ExpenseService) Create(ctx context.Context, req *request.CreateExpenseR
 		return nil, err
 	}
 
-	// SPV must be a member of the project
-	if role == string(model.RoleSPV) {
+	// Field roles (SPV, QC) must be a member of the project
+	if model.IsFieldRole(role) {
 		isMember, err := s.memberRepo.Exists(ctx, req.ProjectID, userID)
 		if err != nil {
 			return nil, err
@@ -142,8 +142,8 @@ func (s *ExpenseService) List(ctx context.Context, userID uint64, role string) (
 	var expenses []model.Expense
 	var err error
 
-	if role == string(model.RoleSPV) {
-		// SPV sees only expenses from their projects
+	if model.IsFieldRole(role) {
+		// Field roles (SPV, QC) see only expenses from their projects
 		projects, err := s.projectRepo.FindByMemberUserID(ctx, userID)
 		if err != nil {
 			return nil, err
@@ -191,8 +191,8 @@ func (s *ExpenseService) Update(ctx context.Context, id uint64, req *request.Upd
 		return nil, err
 	}
 
-	// SPV can only update their own expenses
-	if role == string(model.RoleSPV) && expense.CreatedBy != userID {
+	// Field roles (SPV, QC) can only update their own expenses
+	if model.IsFieldRole(role) && expense.CreatedBy != userID {
 		return nil, fmt.Errorf("not authorized to update this expense")
 	}
 
@@ -233,8 +233,8 @@ func (s *ExpenseService) Delete(ctx context.Context, id uint64, userID uint64, r
 		return err
 	}
 
-	// SPV can only delete their own expenses
-	if role == string(model.RoleSPV) && expense.CreatedBy != userID {
+	// Field roles (SPV, QC) can only delete their own expenses
+	if model.IsFieldRole(role) && expense.CreatedBy != userID {
 		return fmt.Errorf("not authorized to delete this expense")
 	}
 

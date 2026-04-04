@@ -102,8 +102,8 @@ func (s *BudgetRequestService) Create(ctx context.Context, req *request.CreateBu
 		return nil, err
 	}
 
-	// SPV must be a member of the project
-	if role == string(model.RoleSPV) {
+	// Field roles (SPV, QC) must be a member of the project
+	if model.IsFieldRole(role) {
 		isMember, err := s.memberRepo.Exists(ctx, req.ProjectID, userID)
 		if err != nil {
 			return nil, err
@@ -149,8 +149,8 @@ func (s *BudgetRequestService) List(ctx context.Context, userID uint64, role str
 	var requests []model.BudgetRequest
 	var err error
 
-	if role == string(model.RoleSPV) {
-		// SPV sees only budget requests from their projects
+	if model.IsFieldRole(role) {
+		// Field roles (SPV, QC) see only budget requests from their projects
 		projects, err := s.projectRepo.FindByMemberUserID(ctx, userID)
 		if err != nil {
 			return nil, err

@@ -128,8 +128,8 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	invoices.Post("", invoiceHandler.Create)
 	invoices.Get("", invoiceHandler.List)
 	invoices.Get("/:id", invoiceHandler.GetByID)
-	invoices.Put("/:id", middleware.RequireRoles("SPV"), invoiceHandler.Update)
-	invoices.Delete("/:id", middleware.RequireRoles("SPV"), invoiceHandler.Delete)
+	invoices.Put("/:id", middleware.RequireRoles("SPV", "QC"), invoiceHandler.Update)
+	invoices.Delete("/:id", middleware.RequireRoles("SPV", "QC"), invoiceHandler.Delete)
 	invoices.Post("/:id/approve", middleware.RequireRoles("FINANCE", "OWNER"), invoiceHandler.Approve)
 	invoices.Post("/:id/reject", middleware.RequireRoles("FINANCE", "OWNER"), invoiceHandler.Reject)
 

@@ -8,7 +8,13 @@ const (
 	RoleSPV     UserRole = "SPV"
 	RoleFinance UserRole = "FINANCE"
 	RoleOwner   UserRole = "OWNER"
+	RoleQC      UserRole = "QC"
 )
+
+// IsFieldRole returns true for roles that are scoped to their own projects (SPV, QC)
+func IsFieldRole(role string) bool {
+	return role == string(RoleSPV) || role == string(RoleQC)
+}
 
 type User struct {
 	ID        uint64   `json:"id"`
