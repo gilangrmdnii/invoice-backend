@@ -17,6 +17,14 @@ var allowedExtensions = map[string]bool{
 	".jpeg": true,
 	".png":  true,
 	".pdf":  true,
+	".mp3":  true,
+	".wav":  true,
+	".ogg":  true,
+	".m4a":  true,
+	".mp4":  true,
+	".mov":  true,
+	".avi":  true,
+	".webm": true,
 }
 
 type UploadHandler struct {
@@ -33,14 +41,14 @@ func (h *UploadHandler) Upload(c *fiber.Ctx) error {
 		return response.Error(c, fiber.StatusBadRequest, "file is required")
 	}
 
-	// Max 5MB
-	if file.Size > 5*1024*1024 {
-		return response.Error(c, fiber.StatusBadRequest, "file size must be less than 5MB")
+	// Max 50MB
+	if file.Size > 50*1024*1024 {
+		return response.Error(c, fiber.StatusBadRequest, "file size must be less than 50MB")
 	}
 
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	if !allowedExtensions[ext] {
-		return response.Error(c, fiber.StatusBadRequest, "only JPG, PNG, and PDF files are allowed")
+		return response.Error(c, fiber.StatusBadRequest, "only JPG, PNG, PDF, audio (MP3/WAV/OGG/M4A), and video (MP4/MOV/AVI/WEBM) files are allowed")
 	}
 
 	// Generate unique filename

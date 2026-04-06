@@ -33,6 +33,8 @@ func RunMigrations(db *sql.DB, migrationFS embed.FS) error {
 		"000008_invoice_dual_tax.sql":       `SELECT ppn_percentage FROM invoices LIMIT 1`,
 		"000009_plan_item_days_amount.sql":       `SELECT days FROM project_plan_items LIMIT 1`,
 		"000010_budget_request_proof.sql":        `SELECT proof_url FROM budget_requests LIMIT 1`,
+		"000011_qc_documents.sql":                `SELECT 1 FROM qc_documents LIMIT 1`,
+		"000012_project_workers.sql":             `SELECT 1 FROM project_workers LIMIT 1`,
 	}
 	for name, checkSQL := range baselineChecks {
 		var alreadyApplied int

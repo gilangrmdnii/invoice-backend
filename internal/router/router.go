@@ -38,6 +38,8 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	companySettingsRepo := repository.NewCompanySettingsRepository(db)
 
 	planRepo := repository.NewProjectPlanRepository(db)
+	qcDocRepo := repository.NewQCDocumentRepository(db)
+	workerRepo := repository.NewProjectWorkerRepository(db)
 
 	// Services
 	authService := service.NewAuthService(userRepo, cfg)
@@ -51,6 +53,8 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	companySettingsService := service.NewCompanySettingsService(companySettingsRepo)
 	invoicePaymentService := service.NewInvoicePaymentService(invoicePaymentRepo, invoiceRepo, auditLogRepo, notifRepo, userRepo, sseHub)
 	userService := service.NewUserService(userRepo, auditLogRepo)
+	qcDocService := service.NewQCDocumentService(qcDocRepo, projectRepo, memberRepo, auditLogRepo, notifRepo, userRepo, sseHub)
+	workerService := service.NewProjectWorkerService(workerRepo, projectRepo, memberRepo, auditLogRepo, userRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -66,6 +70,8 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	userHandler := handler.NewUserHandler(userService)
 	companySettingsHandler := handler.NewCompanySettingsHandler(companySettingsService)
 	invoicePaymentHandler := handler.NewInvoicePaymentHandler(invoicePaymentService)
+	qcDocHandler := handler.NewQCDocumentHandler(qcDocService)
+	workerHandler := handler.NewProjectWorkerHandler(workerService)
 
 	api := app.Group("/api")
 
@@ -107,6 +113,13 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	projects.Get("/:id/plan", projectHandler.GetPlan)
 	projects.Put("/:id/plan", middleware.RequireRoles("FINANCE", "OWNER"), projectHandler.UpdatePlan)
 
+	// Project worker routes (nested under projects)
+	projects.Post("/:projectId/workers", workerHandler.Create)
+	projects.Get("/:projectId/workers", workerHandler.ListByProject)
+	projects.Get("/:projectId/workers/:id", workerHandler.GetByID)
+	projects.Put("/:projectId/workers/:id", workerHandler.Update)
+	projects.Delete("/:projectId/workers/:id", middleware.RequireRoles("FINANCE", "OWNER", "SPV", "QC"), workerHandler.Delete)
+
 	// Expense routes
 	expenses := protected.Group("/expenses")
 	expenses.Post("", expenseHandler.Create)
@@ -137,6 +150,14 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	invoices.Post("/:invoiceId/payments", middleware.RequireRoles("FINANCE", "OWNER"), invoicePaymentHandler.Create)
 	invoices.Get("/:invoiceId/payments", invoicePaymentHandler.ListByInvoice)
 	invoices.Delete("/:invoiceId/payments/:paymentId", middleware.RequireRoles("FINANCE", "OWNER"), invoicePaymentHandler.Delete)
+
+	// QC Document routes
+	qcDocs := protected.Group("/qc-documents")
+	qcDocs.Post("", qcDocHandler.Create)
+	qcDocs.Get("", qcDocHandler.List)
+	qcDocs.Get("/:id", qcDocHandler.GetByID)
+	qcDocs.Put("/:id", qcDocHandler.Update)
+	qcDocs.Delete("/:id", qcDocHandler.Delete)
 
 	// Company settings (FINANCE, OWNER only)
 	companySettings := protected.Group("/company-settings")
