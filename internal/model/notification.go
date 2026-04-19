@@ -15,6 +15,8 @@ const (
 	NotifInvoiceApproved NotificationType = "INVOICE_APPROVED"
 	NotifInvoiceRejected    NotificationType = "INVOICE_REJECTED"
 	NotifQCDocumentCreated  NotificationType = "QC_DOCUMENT_CREATED"
+	NotifQCReportCreated    NotificationType = "QC_REPORT_CREATED"
+	NotifQCReportUpdated    NotificationType = "QC_REPORT_UPDATED"
 )
 
 type Notification struct {

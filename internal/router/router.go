@@ -40,6 +40,7 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	planRepo := repository.NewProjectPlanRepository(db)
 	qcDocRepo := repository.NewQCDocumentRepository(db)
 	workerRepo := repository.NewProjectWorkerRepository(db)
+	qcReportRepo := repository.NewQCReportRepository(db)
 
 	// Services
 	authService := service.NewAuthService(userRepo, cfg)
@@ -55,6 +56,7 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	userService := service.NewUserService(userRepo, auditLogRepo)
 	qcDocService := service.NewQCDocumentService(qcDocRepo, projectRepo, memberRepo, auditLogRepo, notifRepo, userRepo, sseHub)
 	workerService := service.NewProjectWorkerService(workerRepo, projectRepo, memberRepo, auditLogRepo, userRepo)
+	qcReportService := service.NewQCReportService(qcReportRepo, projectRepo, memberRepo, auditLogRepo, notifRepo, userRepo, sseHub)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -72,6 +74,7 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	invoicePaymentHandler := handler.NewInvoicePaymentHandler(invoicePaymentService)
 	qcDocHandler := handler.NewQCDocumentHandler(qcDocService)
 	workerHandler := handler.NewProjectWorkerHandler(workerService)
+	qcReportHandler := handler.NewQCReportHandler(qcReportService)
 
 	api := app.Group("/api")
 
@@ -158,6 +161,14 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	qcDocs.Get("/:id", qcDocHandler.GetByID)
 	qcDocs.Put("/:id", qcDocHandler.Update)
 	qcDocs.Delete("/:id", qcDocHandler.Delete)
+
+	// QC Financial Report routes
+	qcReports := protected.Group("/qc-reports")
+	qcReports.Post("", qcReportHandler.Create)
+	qcReports.Get("", qcReportHandler.List)
+	qcReports.Get("/:id", qcReportHandler.GetByID)
+	qcReports.Put("/:id", qcReportHandler.Update)
+	qcReports.Delete("/:id", qcReportHandler.Delete)
 
 	// Company settings (FINANCE, OWNER only)
 	companySettings := protected.Group("/company-settings")
