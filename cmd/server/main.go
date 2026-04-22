@@ -4,14 +4,14 @@ import (
 	"log"
 	"os"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gilangrmdnii/invoice-backend/internal/config"
 	"github.com/gilangrmdnii/invoice-backend/internal/database"
 	"github.com/gilangrmdnii/invoice-backend/internal/router"
 	"github.com/gilangrmdnii/invoice-backend/migrations"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 )
 
 func main() {
@@ -42,8 +42,12 @@ func main() {
 
 	app.Use(recover.New())
 	app.Use(logger.New())
-	app.Use(cors.New())
-
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     "https://invoice-frontend-ruby.vercel.app",
+		AllowMethods:     "GET,POST,PUT,PATCH,DELETE",
+		AllowHeaders:     "Origin,Content-Type,Authorization",
+		AllowCredentials: true,
+	}))
 	router.SetupRoutes(app, db, cfg)
 
 	port := os.Getenv("PORT")
