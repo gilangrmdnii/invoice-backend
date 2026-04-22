@@ -168,6 +168,9 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	qcReports.Get("", qcReportHandler.List)
 	qcReports.Get("/:id", qcReportHandler.GetByID)
 	qcReports.Put("/:id", qcReportHandler.Update)
+	qcReports.Post("/:id/submit", qcReportHandler.Submit)
+	qcReports.Post("/:id/approve", middleware.RequireRoles("QC_COORDINATOR", "FINANCE", "OWNER"), qcReportHandler.Approve)
+	qcReports.Post("/:id/reject", middleware.RequireRoles("QC_COORDINATOR", "FINANCE", "OWNER"), qcReportHandler.Reject)
 	qcReports.Delete("/:id", qcReportHandler.Delete)
 
 	// Company settings (FINANCE, OWNER only)

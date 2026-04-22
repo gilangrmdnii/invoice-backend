@@ -48,6 +48,11 @@ type QCReportResponse struct {
 	TelpTarget                int                              `json:"telp_target"`
 	TelpOK                    int                              `json:"telp_ok"`
 	TotalAmount               float64                          `json:"total_amount"`
+	Status                    string                           `json:"status"`
+	ApprovedBy                *uint64                          `json:"approved_by"`
+	ApproverName              string                           `json:"approver_name"`
+	ApprovalNotes             string                           `json:"approval_notes"`
+	ApprovedAt                *time.Time                       `json:"approved_at"`
 	Location                  string                           `json:"location"`
 	ReportDate                *time.Time                       `json:"report_date"`
 	QCSignatoryName           string                           `json:"qc_signatory_name"`

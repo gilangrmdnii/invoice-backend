@@ -108,6 +108,84 @@ func (h *QCReportHandler) Update(c *fiber.Ctx) error {
 	return response.Success(c, fiber.StatusOK, "qc report updated", rep)
 }
 
+func (h *QCReportHandler) Submit(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "invalid id")
+	}
+
+	userID := middleware.GetUserID(c)
+	role := middleware.GetUserRole(c)
+
+	rep, err := h.service.Submit(c.Context(), id, userID, role)
+	if err != nil {
+		if err.Error() == "qc report not found" {
+			return response.Error(c, fiber.StatusNotFound, err.Error())
+		}
+		if err.Error() == "not authorized to submit this report" {
+			return response.Error(c, fiber.StatusForbidden, err.Error())
+		}
+		if err.Error() == "only DRAFT or REJECTED report can be submitted" {
+			return response.Error(c, fiber.StatusBadRequest, err.Error())
+		}
+		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return response.Success(c, fiber.StatusOK, "qc report submitted", rep)
+}
+
+func (h *QCReportHandler) Approve(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "invalid id")
+	}
+
+	var req request.ApproveQCReportRequest
+	_ = validator.ParseAndValidate(c, &req)
+
+	userID := middleware.GetUserID(c)
+
+	rep, err := h.service.Approve(c.Context(), id, userID, req.Notes)
+	if err != nil {
+		if err.Error() == "qc report not found" {
+			return response.Error(c, fiber.StatusNotFound, err.Error())
+		}
+		if err.Error() == "only PENDING report can be approved" {
+			return response.Error(c, fiber.StatusBadRequest, err.Error())
+		}
+		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return response.Success(c, fiber.StatusOK, "qc report approved", rep)
+}
+
+func (h *QCReportHandler) Reject(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.Error(c, fiber.StatusBadRequest, "invalid id")
+	}
+
+	var req request.RejectQCReportRequest
+	if err := validator.ParseAndValidate(c, &req); err != nil {
+		return response.Error(c, fiber.StatusBadRequest, err.Error())
+	}
+
+	userID := middleware.GetUserID(c)
+
+	rep, err := h.service.Reject(c.Context(), id, userID, req.Notes)
+	if err != nil {
+		if err.Error() == "qc report not found" {
+			return response.Error(c, fiber.StatusNotFound, err.Error())
+		}
+		if err.Error() == "only PENDING report can be rejected" {
+			return response.Error(c, fiber.StatusBadRequest, err.Error())
+		}
+		return response.Error(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return response.Success(c, fiber.StatusOK, "qc report rejected", rep)
+}
+
 func (h *QCReportHandler) Delete(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {

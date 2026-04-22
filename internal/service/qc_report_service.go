@@ -187,6 +187,7 @@ func (s *QCReportService) Create(ctx context.Context, req *request.CreateQCRepor
 		TelpTarget:                req.TelpTarget,
 		TelpOK:                    req.TelpOK,
 		TotalAmount:               total,
+		Status:                    model.QCReportDraft,
 		Location:                  req.Location,
 		ReportDate:                parseDateNullable(req.ReportDate),
 		QCSignatoryName:           req.QCSignatoryName,
@@ -264,9 +265,13 @@ func (s *QCReportService) Update(ctx context.Context, id uint64, req *request.Up
 		return nil, err
 	}
 
-	// Field roles can only update own reports
+	// Field roles can only update own reports.
+	// Approved reports cannot be edited (except by FINANCE/OWNER/QC_COORDINATOR who reset to DRAFT via approval endpoint).
 	if model.IsFieldRole(role) && rep.CreatedBy != userID {
 		return nil, fmt.Errorf("not authorized to update this report")
+	}
+	if rep.Status == model.QCReportApproved && model.IsFieldRole(role) {
+		return nil, fmt.Errorf("approved report cannot be edited")
 	}
 
 	if req.QCUserID > 0 {
@@ -369,6 +374,109 @@ func (s *QCReportService) Delete(ctx context.Context, id uint64, userID uint64, 
 	return nil
 }
 
+// Submit — QC/SPV/QC_COORDINATOR submit DRAFT report to become PENDING approval
+func (s *QCReportService) Submit(ctx context.Context, id uint64, userID uint64, role string) (*response.QCReportResponse, error) {
+	rep, err := s.reportRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("qc report not found")
+		}
+		return nil, err
+	}
+
+	// Field roles can only submit their own reports
+	if model.IsFieldRole(role) && rep.CreatedBy != userID {
+		return nil, fmt.Errorf("not authorized to submit this report")
+	}
+	if rep.Status != model.QCReportDraft && rep.Status != model.QCReportRejected {
+		return nil, fmt.Errorf("only DRAFT or REJECTED report can be submitted")
+	}
+
+	if err := s.reportRepo.SetApproval(ctx, id, model.QCReportPending, 0, ""); err != nil {
+		return nil, err
+	}
+
+	s.logAudit(ctx, userID, "SUBMIT", id, "")
+	s.notifyRoles(ctx, []string{"QC_COORDINATOR", "FINANCE", "OWNER"}, "QC Report Submitted",
+		"A QC report is waiting for approval",
+		model.NotifQCReportSubmitted, id)
+
+	return s.GetByID(ctx, id)
+}
+
+// Approve — only QC_COORDINATOR, FINANCE, OWNER
+func (s *QCReportService) Approve(ctx context.Context, id uint64, userID uint64, notes string) (*response.QCReportResponse, error) {
+	rep, err := s.reportRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("qc report not found")
+		}
+		return nil, err
+	}
+	if rep.Status != model.QCReportPending {
+		return nil, fmt.Errorf("only PENDING report can be approved")
+	}
+
+	if err := s.reportRepo.SetApproval(ctx, id, model.QCReportApproved, userID, notes); err != nil {
+		return nil, err
+	}
+
+	s.logAudit(ctx, userID, "APPROVE", id, notes)
+	// Notify the creator
+	title := "QC Report Approved"
+	message := "Your QC report has been approved"
+	if notifID, err := s.notifRepo.Create(ctx, &model.Notification{
+		UserID:      rep.CreatedBy,
+		Title:       title,
+		Message:     message,
+		Type:        model.NotifQCReportApproved,
+		ReferenceID: &id,
+	}); err == nil {
+		s.sseHub.Publish(rep.CreatedBy, sse.Event{
+			Type: string(model.NotifQCReportApproved),
+			Data: map[string]interface{}{"id": notifID, "title": title, "message": message, "reference_id": id},
+		})
+	}
+
+	return s.GetByID(ctx, id)
+}
+
+// Reject — only QC_COORDINATOR, FINANCE, OWNER
+func (s *QCReportService) Reject(ctx context.Context, id uint64, userID uint64, notes string) (*response.QCReportResponse, error) {
+	rep, err := s.reportRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("qc report not found")
+		}
+		return nil, err
+	}
+	if rep.Status != model.QCReportPending {
+		return nil, fmt.Errorf("only PENDING report can be rejected")
+	}
+
+	if err := s.reportRepo.SetApproval(ctx, id, model.QCReportRejected, userID, notes); err != nil {
+		return nil, err
+	}
+
+	s.logAudit(ctx, userID, "REJECT", id, notes)
+	title := "QC Report Rejected"
+	message := "Your QC report has been rejected: " + notes
+	if notifID, err := s.notifRepo.Create(ctx, &model.Notification{
+		UserID:      rep.CreatedBy,
+		Title:       title,
+		Message:     message,
+		Type:        model.NotifQCReportRejected,
+		ReferenceID: &id,
+	}); err == nil {
+		s.sseHub.Publish(rep.CreatedBy, sse.Event{
+			Type: string(model.NotifQCReportRejected),
+			Data: map[string]interface{}{"id": notifID, "title": title, "message": message, "reference_id": id},
+		})
+	}
+
+	return s.GetByID(ctx, id)
+}
+
 func (s *QCReportService) enrichReport(ctx context.Context, rep *model.QCReport, includeChildren bool) (*response.QCReportResponse, error) {
 	resp := response.QCReportResponse{
 		ID:                        rep.ID,
@@ -389,6 +497,10 @@ func (s *QCReportService) enrichReport(ctx context.Context, rep *model.QCReport,
 		TelpTarget:                rep.TelpTarget,
 		TelpOK:                    rep.TelpOK,
 		TotalAmount:               rep.TotalAmount,
+		Status:                    string(rep.Status),
+		ApprovedBy:                rep.ApprovedBy,
+		ApprovalNotes:             rep.ApprovalNotes,
+		ApprovedAt:                rep.ApprovedAt,
 		Location:                  rep.Location,
 		ReportDate:                rep.ReportDate,
 		QCSignatoryName:           rep.QCSignatoryName,
@@ -411,6 +523,11 @@ func (s *QCReportService) enrichReport(ctx context.Context, rep *model.QCReport,
 	}
 	if creator, err := s.userRepo.FindByID(ctx, rep.CreatedBy); err == nil {
 		resp.CreatorName = creator.FullName
+	}
+	if rep.ApprovedBy != nil {
+		if approver, err := s.userRepo.FindByID(ctx, *rep.ApprovedBy); err == nil {
+			resp.ApproverName = approver.FullName
+		}
 	}
 
 	if includeChildren {

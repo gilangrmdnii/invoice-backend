@@ -30,13 +30,15 @@ func (r *QCReportRepository) Create(ctx context.Context, rep *model.QCReport, it
 			project_id, qc_user_id, spv_names, project_type, methodology, city, area,
 			execution_start_date, execution_end_date, briefing_date, work_start_date, work_end_date,
 			visit_target, visit_ok, telp_target, telp_ok, total_amount,
+			status,
 			location, report_date,
 			qc_signatory_name, qc_signatory_title, coordinator_signatory_name, coordinator_signatory_title,
 			note, created_by
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		rep.ProjectID, rep.QCUserID, rep.SPVNames, rep.ProjectType, rep.Methodology, rep.City, rep.Area,
 		rep.ExecutionStartDate, rep.ExecutionEndDate, rep.BriefingDate, rep.WorkStartDate, rep.WorkEndDate,
 		rep.VisitTarget, rep.VisitOK, rep.TelpTarget, rep.TelpOK, rep.TotalAmount,
+		rep.Status,
 		rep.Location, rep.ReportDate,
 		rep.QCSignatoryName, rep.QCSignatoryTitle, rep.CoordinatorSignatoryName, rep.CoordinatorSignatoryTitle,
 		rep.Note, rep.CreatedBy,
@@ -82,6 +84,7 @@ func (r *QCReportRepository) FindByID(ctx context.Context, id uint64) (*model.QC
 		SELECT id, project_id, qc_user_id, spv_names, project_type, methodology, city, area,
 			execution_start_date, execution_end_date, briefing_date, work_start_date, work_end_date,
 			visit_target, visit_ok, telp_target, telp_ok, total_amount,
+			status, approved_by, approval_notes, approved_at,
 			location, report_date,
 			qc_signatory_name, qc_signatory_title, coordinator_signatory_name, coordinator_signatory_title,
 			note, created_by, created_at, updated_at
@@ -89,6 +92,7 @@ func (r *QCReportRepository) FindByID(ctx context.Context, id uint64) (*model.QC
 		&rep.ID, &rep.ProjectID, &rep.QCUserID, &rep.SPVNames, &rep.ProjectType, &rep.Methodology, &rep.City, &rep.Area,
 		&rep.ExecutionStartDate, &rep.ExecutionEndDate, &rep.BriefingDate, &rep.WorkStartDate, &rep.WorkEndDate,
 		&rep.VisitTarget, &rep.VisitOK, &rep.TelpTarget, &rep.TelpOK, &rep.TotalAmount,
+		&rep.Status, &rep.ApprovedBy, &rep.ApprovalNotes, &rep.ApprovedAt,
 		&rep.Location, &rep.ReportDate,
 		&rep.QCSignatoryName, &rep.QCSignatoryTitle, &rep.CoordinatorSignatoryName, &rep.CoordinatorSignatoryTitle,
 		&rep.Note, &rep.CreatedBy, &rep.CreatedAt, &rep.UpdatedAt,
@@ -104,6 +108,7 @@ func (r *QCReportRepository) FindAll(ctx context.Context) ([]model.QCReport, err
 		SELECT id, project_id, qc_user_id, spv_names, project_type, methodology, city, area,
 			execution_start_date, execution_end_date, briefing_date, work_start_date, work_end_date,
 			visit_target, visit_ok, telp_target, telp_ok, total_amount,
+			status, approved_by, approval_notes, approved_at,
 			location, report_date,
 			qc_signatory_name, qc_signatory_title, coordinator_signatory_name, coordinator_signatory_title,
 			note, created_by, created_at, updated_at
@@ -115,6 +120,7 @@ func (r *QCReportRepository) FindByProjectID(ctx context.Context, projectID uint
 		SELECT id, project_id, qc_user_id, spv_names, project_type, methodology, city, area,
 			execution_start_date, execution_end_date, briefing_date, work_start_date, work_end_date,
 			visit_target, visit_ok, telp_target, telp_ok, total_amount,
+			status, approved_by, approval_notes, approved_at,
 			location, report_date,
 			qc_signatory_name, qc_signatory_title, coordinator_signatory_name, coordinator_signatory_title,
 			note, created_by, created_at, updated_at
@@ -130,6 +136,7 @@ func (r *QCReportRepository) FindByProjectIDs(ctx context.Context, projectIDs []
 		SELECT id, project_id, qc_user_id, spv_names, project_type, methodology, city, area,
 			execution_start_date, execution_end_date, briefing_date, work_start_date, work_end_date,
 			visit_target, visit_ok, telp_target, telp_ok, total_amount,
+			status, approved_by, approval_notes, approved_at,
 			location, report_date,
 			qc_signatory_name, qc_signatory_title, coordinator_signatory_name, coordinator_signatory_title,
 			note, created_by, created_at, updated_at
@@ -174,6 +181,7 @@ func (r *QCReportRepository) Update(ctx context.Context, rep *model.QCReport, it
 			qc_user_id = ?, spv_names = ?, project_type = ?, methodology = ?, city = ?, area = ?,
 			execution_start_date = ?, execution_end_date = ?, briefing_date = ?, work_start_date = ?, work_end_date = ?,
 			visit_target = ?, visit_ok = ?, telp_target = ?, telp_ok = ?, total_amount = ?,
+			status = ?,
 			location = ?, report_date = ?,
 			qc_signatory_name = ?, qc_signatory_title = ?, coordinator_signatory_name = ?, coordinator_signatory_title = ?,
 			note = ?
@@ -181,6 +189,7 @@ func (r *QCReportRepository) Update(ctx context.Context, rep *model.QCReport, it
 		rep.QCUserID, rep.SPVNames, rep.ProjectType, rep.Methodology, rep.City, rep.Area,
 		rep.ExecutionStartDate, rep.ExecutionEndDate, rep.BriefingDate, rep.WorkStartDate, rep.WorkEndDate,
 		rep.VisitTarget, rep.VisitOK, rep.TelpTarget, rep.TelpOK, rep.TotalAmount,
+		rep.Status,
 		rep.Location, rep.ReportDate,
 		rep.QCSignatoryName, rep.QCSignatoryTitle, rep.CoordinatorSignatoryName, rep.CoordinatorSignatoryTitle,
 		rep.Note, rep.ID,
@@ -232,6 +241,16 @@ func (r *QCReportRepository) Delete(ctx context.Context, id uint64) error {
 		return sql.ErrNoRows
 	}
 	return nil
+}
+
+// SetApproval updates approval status, approver, notes, and approved_at
+func (r *QCReportRepository) SetApproval(ctx context.Context, id uint64, status model.QCReportStatus, approvedBy uint64, notes string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE qc_reports SET status = ?, approved_by = ?, approval_notes = ?, approved_at = CURRENT_TIMESTAMP
+		WHERE id = ?`,
+		status, approvedBy, notes, id,
+	)
+	return err
 }
 
 // ============ Items & Recruiters ============

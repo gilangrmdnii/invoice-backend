@@ -1,5 +1,15 @@
 package request
 
+type ApproveQCReportRequest struct {
+	Notes string `json:"notes" validate:"omitempty,max=1000"`
+}
+
+type RejectQCReportRequest struct {
+	Notes string `json:"notes" validate:"required,min=3,max=1000"`
+}
+
+type SubmitQCReportRequest struct{}
+
 type QCReportItemRequest struct {
 	Category  string  `json:"category" validate:"required,oneof=VISIT_URBAN VISIT_RURAL TELP_QUAL TELP_QUANT CLT_TIMESHEET RECORDING UANG_MAKAN INPUT_PERPI PARKIR BENSIN LAIN_LAIN"`
 	Status    string  `json:"status" validate:"omitempty,oneof=OK DO NONE"`

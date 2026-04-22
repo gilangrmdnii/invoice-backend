@@ -17,6 +17,9 @@ const (
 	NotifQCDocumentCreated  NotificationType = "QC_DOCUMENT_CREATED"
 	NotifQCReportCreated    NotificationType = "QC_REPORT_CREATED"
 	NotifQCReportUpdated    NotificationType = "QC_REPORT_UPDATED"
+	NotifQCReportSubmitted  NotificationType = "QC_REPORT_SUBMITTED"
+	NotifQCReportApproved   NotificationType = "QC_REPORT_APPROVED"
+	NotifQCReportRejected   NotificationType = "QC_REPORT_REJECTED"
 )
 
 type Notification struct {

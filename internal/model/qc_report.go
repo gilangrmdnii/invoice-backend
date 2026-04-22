@@ -51,6 +51,15 @@ const (
 	QCStatusNone QCItemStatus = "NONE"
 )
 
+type QCReportStatus string
+
+const (
+	QCReportDraft    QCReportStatus = "DRAFT"
+	QCReportPending  QCReportStatus = "PENDING"
+	QCReportApproved QCReportStatus = "APPROVED"
+	QCReportRejected QCReportStatus = "REJECTED"
+)
+
 type QCReport struct {
 	ID                        uint64        `json:"id"`
 	ProjectID                 uint64        `json:"project_id"`
@@ -69,8 +78,12 @@ type QCReport struct {
 	VisitOK                   int           `json:"visit_ok"`
 	TelpTarget                int           `json:"telp_target"`
 	TelpOK                    int           `json:"telp_ok"`
-	TotalAmount               float64       `json:"total_amount"`
-	Location                  string        `json:"location"`
+	TotalAmount               float64        `json:"total_amount"`
+	Status                    QCReportStatus `json:"status"`
+	ApprovedBy                *uint64        `json:"approved_by"`
+	ApprovalNotes             string         `json:"approval_notes"`
+	ApprovedAt                *time.Time     `json:"approved_at"`
+	Location                  string         `json:"location"`
 	ReportDate                *time.Time    `json:"report_date"`
 	QCSignatoryName           string        `json:"qc_signatory_name"`
 	QCSignatoryTitle          string        `json:"qc_signatory_title"`

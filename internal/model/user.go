@@ -5,15 +5,21 @@ import "time"
 type UserRole string
 
 const (
-	RoleSPV     UserRole = "SPV"
-	RoleFinance UserRole = "FINANCE"
-	RoleOwner   UserRole = "OWNER"
-	RoleQC      UserRole = "QC"
+	RoleSPV           UserRole = "SPV"
+	RoleFinance       UserRole = "FINANCE"
+	RoleOwner         UserRole = "OWNER"
+	RoleQC            UserRole = "QC"
+	RoleQCCoordinator UserRole = "QC_COORDINATOR"
 )
 
 // IsFieldRole returns true for roles that are scoped to their own projects (SPV, QC)
 func IsFieldRole(role string) bool {
 	return role == string(RoleSPV) || role == string(RoleQC)
+}
+
+// IsQCCoordinator returns true for QC_COORDINATOR role
+func IsQCCoordinator(role string) bool {
+	return role == string(RoleQCCoordinator)
 }
 
 type User struct {
