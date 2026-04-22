@@ -204,8 +204,8 @@ func (s *QCReportService) Create(ctx context.Context, req *request.CreateQCRepor
 	}
 
 	s.logAudit(ctx, userID, "CREATE", id, fmt.Sprintf("project=%s, total=%.0f", project.Name, total))
-	s.notifyRoles(ctx, []string{"FINANCE", "OWNER"}, "QC Report Created",
-		fmt.Sprintf("A new QC report has been created for project %s", project.Name),
+	s.notifyRoles(ctx, []string{"QC_COORDINATOR", "FINANCE", "OWNER"}, "Laporan QC Baru",
+		fmt.Sprintf("Laporan QC baru telah dibuat untuk proyek %s", project.Name),
 		model.NotifQCReportCreated, id)
 
 	return s.GetByID(ctx, id)
@@ -397,8 +397,8 @@ func (s *QCReportService) Submit(ctx context.Context, id uint64, userID uint64, 
 	}
 
 	s.logAudit(ctx, userID, "SUBMIT", id, "")
-	s.notifyRoles(ctx, []string{"QC_COORDINATOR", "FINANCE", "OWNER"}, "QC Report Submitted",
-		"A QC report is waiting for approval",
+	s.notifyRoles(ctx, []string{"QC_COORDINATOR", "FINANCE", "OWNER"}, "Laporan QC Diajukan",
+		"Laporan QC menunggu persetujuan",
 		model.NotifQCReportSubmitted, id)
 
 	return s.GetByID(ctx, id)
@@ -423,8 +423,8 @@ func (s *QCReportService) Approve(ctx context.Context, id uint64, userID uint64,
 
 	s.logAudit(ctx, userID, "APPROVE", id, notes)
 	// Notify the creator
-	title := "QC Report Approved"
-	message := "Your QC report has been approved"
+	title := "Laporan QC Disetujui"
+	message := "Laporan QC Anda telah disetujui"
 	if notifID, err := s.notifRepo.Create(ctx, &model.Notification{
 		UserID:      rep.CreatedBy,
 		Title:       title,
@@ -459,8 +459,8 @@ func (s *QCReportService) Reject(ctx context.Context, id uint64, userID uint64, 
 	}
 
 	s.logAudit(ctx, userID, "REJECT", id, notes)
-	title := "QC Report Rejected"
-	message := "Your QC report has been rejected: " + notes
+	title := "Laporan QC Ditolak"
+	message := "Laporan QC Anda ditolak: " + notes
 	if notifID, err := s.notifRepo.Create(ctx, &model.Notification{
 		UserID:      rep.CreatedBy,
 		Title:       title,

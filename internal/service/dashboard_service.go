@@ -25,9 +25,10 @@ func NewDashboardService(
 
 func (s *DashboardService) GetDashboard(ctx context.Context, userID uint64, role string) (*response.DashboardResponse, error) {
 	var projectIDs []uint64
+	isFieldScoped := model.IsFieldRole(role)
 
 	// Field roles (SPV, QC) only see their own projects
-	if model.IsFieldRole(role) {
+	if isFieldScoped {
 		projects, err := s.projectRepo.FindByMemberUserID(ctx, userID)
 		if err != nil {
 			return nil, err
@@ -35,6 +36,16 @@ func (s *DashboardService) GetDashboard(ctx context.Context, userID uint64, role
 		projectIDs = make([]uint64, len(projects))
 		for i, p := range projects {
 			projectIDs[i] = p.ID
+		}
+		// Field role with no assigned projects → return empty dashboard
+		if len(projectIDs) == 0 {
+			return &response.DashboardResponse{
+				Projects:       response.ProjectSummary{},
+				Budget:         response.BudgetSummary{},
+				Expenses:       response.ExpenseSummary{},
+				BudgetRequests: response.BudgetRequestSummary{},
+				Invoices:       response.InvoiceSummary{},
+			}, nil
 		}
 	}
 

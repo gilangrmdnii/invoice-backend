@@ -123,8 +123,8 @@ func (s *ExpenseService) Create(ctx context.Context, req *request.CreateExpenseR
 
 	// Audit + Notification (fire-and-forget)
 	s.logAudit(ctx, userID, "CREATE", "expense", id, fmt.Sprintf("amount=%.2f, category=%s", expense.Amount, expense.Category))
-	s.notifyRoles(ctx, []string{"FINANCE", "OWNER"}, "New Expense Created",
-		fmt.Sprintf("A new expense of %.2f has been recorded", expense.Amount),
+	s.notifyRoles(ctx, []string{"FINANCE", "OWNER"}, "Pengeluaran Baru",
+		fmt.Sprintf("Pengeluaran sebesar Rp %.0f telah dicatat", expense.Amount),
 		model.NotifExpenseCreated, id)
 
 	return &response.ExpenseResponse{

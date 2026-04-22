@@ -92,12 +92,12 @@ func (s *InvoicePaymentService) Create(ctx context.Context, req *request.CreateI
 
 	// Notify invoice creator
 	newPaid := inv.PaidAmount + req.Amount
-	statusLabel := "Partial Payment"
+	statusLabel := "Bayar Sebagian"
 	if newPaid >= inv.Amount {
-		statusLabel = "Fully Paid"
+		statusLabel = "Lunas"
 	}
-	s.notifyUser(ctx, inv.CreatedBy, "Payment Recorded",
-		fmt.Sprintf("Payment of %.2f recorded for invoice %s (%s)", req.Amount, inv.InvoiceNumber, statusLabel),
+	s.notifyUser(ctx, inv.CreatedBy, "Pembayaran Dicatat",
+		fmt.Sprintf("Pembayaran Rp %.0f untuk invoice %s (%s)", req.Amount, inv.InvoiceNumber, statusLabel),
 		model.NotifInvoiceApproved, inv.ID)
 
 	// Get creator name

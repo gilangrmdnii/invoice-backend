@@ -201,8 +201,8 @@ func (s *InvoiceService) Create(ctx context.Context, req *request.CreateInvoiceR
 	}
 
 	s.logAudit(ctx, userID, "CREATE", id, fmt.Sprintf("type=%s, amount=%.2f", inv.InvoiceType, inv.Amount))
-	s.notifyRoles(ctx, []string{"FINANCE", "OWNER"}, "New Invoice Created",
-		fmt.Sprintf("A new %s invoice (%s) of %.2f has been created", inv.InvoiceType, inv.InvoiceNumber, inv.Amount),
+	s.notifyRoles(ctx, []string{"FINANCE", "OWNER"}, "Invoice Baru",
+		fmt.Sprintf("Invoice %s (%s) senilai Rp %.0f telah dibuat", inv.InvoiceType, inv.InvoiceNumber, inv.Amount),
 		model.NotifInvoiceCreated, id)
 
 	return s.GetByID(ctx, id)
@@ -472,8 +472,8 @@ func (s *InvoiceService) Approve(ctx context.Context, id uint64, approvedBy uint
 	}
 
 	s.logAudit(ctx, approvedBy, "APPROVE", id, notes)
-	s.notifyUser(ctx, inv.CreatedBy, "Invoice Approved",
-		fmt.Sprintf("Your invoice %s has been approved", inv.InvoiceNumber),
+	s.notifyUser(ctx, inv.CreatedBy, "Invoice Disetujui",
+		fmt.Sprintf("Invoice %s telah disetujui", inv.InvoiceNumber),
 		model.NotifInvoiceApproved, id)
 
 	return s.GetByID(ctx, id)
@@ -499,8 +499,8 @@ func (s *InvoiceService) Reject(ctx context.Context, id uint64, rejectedBy uint6
 	}
 
 	s.logAudit(ctx, rejectedBy, "REJECT", id, notes)
-	s.notifyUser(ctx, inv.CreatedBy, "Invoice Rejected",
-		fmt.Sprintf("Your invoice %s has been rejected. Reason: %s", inv.InvoiceNumber, notes),
+	s.notifyUser(ctx, inv.CreatedBy, "Invoice Ditolak",
+		fmt.Sprintf("Invoice %s ditolak. Alasan: %s", inv.InvoiceNumber, notes),
 		model.NotifInvoiceRejected, id)
 
 	return s.GetByID(ctx, id)

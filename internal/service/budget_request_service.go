@@ -130,8 +130,8 @@ func (s *BudgetRequestService) Create(ctx context.Context, req *request.CreateBu
 
 	// Audit + Notification
 	s.logAudit(ctx, userID, "CREATE", "budget_request", id, fmt.Sprintf("amount=%.2f, reason=%s", br.Amount, br.Reason))
-	s.notifyRoles(ctx, []string{"FINANCE", "OWNER"}, "New Budget Request",
-		fmt.Sprintf("A budget request of %.2f has been submitted", br.Amount),
+	s.notifyRoles(ctx, []string{"FINANCE", "OWNER"}, "Permintaan Budget Baru",
+		fmt.Sprintf("Permintaan budget sebesar Rp %.0f telah diajukan", br.Amount),
 		model.NotifBudgetRequest, id)
 
 	return &response.BudgetRequestResponse{
@@ -240,8 +240,8 @@ func (s *BudgetRequestService) Approve(ctx context.Context, id, approvedBy uint6
 
 	// Audit + Notification
 	s.logAudit(ctx, approvedBy, "APPROVE", "budget_request", id, fmt.Sprintf("amount=%.2f added to project budget", br.Amount))
-	s.notifyUser(ctx, br.RequestedBy, "Budget Request Approved",
-		fmt.Sprintf("Your budget request of %.2f has been approved", br.Amount),
+	s.notifyUser(ctx, br.RequestedBy, "Permintaan Budget Disetujui",
+		fmt.Sprintf("Permintaan budget Rp %.0f telah disetujui", br.Amount),
 		model.NotifBudgetApproved, id)
 
 	updated, err := s.budgetRequestRepo.FindByID(ctx, id)
@@ -274,8 +274,8 @@ func (s *BudgetRequestService) Reject(ctx context.Context, id, approvedBy uint64
 
 	// Audit + Notification
 	s.logAudit(ctx, approvedBy, "REJECT", "budget_request", id, "")
-	s.notifyUser(ctx, br.RequestedBy, "Budget Request Rejected",
-		fmt.Sprintf("Your budget request of %.2f has been rejected", br.Amount),
+	s.notifyUser(ctx, br.RequestedBy, "Permintaan Budget Ditolak",
+		fmt.Sprintf("Permintaan budget Rp %.0f ditolak", br.Amount),
 		model.NotifBudgetRejected, id)
 
 	updated, err := s.budgetRequestRepo.FindByID(ctx, id)

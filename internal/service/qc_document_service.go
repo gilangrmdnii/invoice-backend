@@ -118,8 +118,8 @@ func (s *QCDocumentService) Create(ctx context.Context, req *request.CreateQCDoc
 	}
 
 	s.logAudit(ctx, userID, "CREATE", id, fmt.Sprintf("type=%s, title=%s, project=%s", req.DocumentType, req.Title, project.Name))
-	s.notifyRoles(ctx, []string{"FINANCE", "OWNER"}, "New QC Document Uploaded",
-		fmt.Sprintf("A new %s document '%s' has been uploaded to project %s", req.DocumentType, req.Title, project.Name),
+	s.notifyRoles(ctx, []string{"FINANCE", "OWNER"}, "Dokumen QC Baru",
+		fmt.Sprintf("Dokumen %s '%s' telah diupload ke proyek %s", req.DocumentType, req.Title, project.Name),
 		model.NotifQCDocumentCreated, id)
 
 	return s.GetByID(ctx, id)
