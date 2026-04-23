@@ -41,6 +41,7 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	qcDocRepo := repository.NewQCDocumentRepository(db)
 	workerRepo := repository.NewProjectWorkerRepository(db)
 	qcReportRepo := repository.NewQCReportRepository(db)
+	financeReportRepo := repository.NewFinanceReportRepository(db)
 
 	// Services
 	authService := service.NewAuthService(userRepo, cfg)
@@ -57,6 +58,7 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	qcDocService := service.NewQCDocumentService(qcDocRepo, projectRepo, memberRepo, auditLogRepo, notifRepo, userRepo, sseHub)
 	workerService := service.NewProjectWorkerService(workerRepo, projectRepo, memberRepo, auditLogRepo, userRepo)
 	qcReportService := service.NewQCReportService(qcReportRepo, projectRepo, memberRepo, auditLogRepo, notifRepo, userRepo, sseHub)
+	financeReportService := service.NewFinanceReportService(financeReportRepo, projectRepo, memberRepo, expenseRepo, qcReportRepo, userRepo, auditLogRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -75,6 +77,7 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	qcDocHandler := handler.NewQCDocumentHandler(qcDocService)
 	workerHandler := handler.NewProjectWorkerHandler(workerService)
 	qcReportHandler := handler.NewQCReportHandler(qcReportService)
+	financeReportHandler := handler.NewFinanceReportHandler(financeReportService)
 
 	api := app.Group("/api")
 
@@ -172,6 +175,11 @@ func SetupRoutes(app *fiber.App, db *sql.DB, cfg *config.Config) {
 	qcReports.Post("/:id/approve", middleware.RequireRoles("QC_COORDINATOR", "FINANCE", "OWNER"), qcReportHandler.Approve)
 	qcReports.Post("/:id/reject", middleware.RequireRoles("QC_COORDINATOR", "FINANCE", "OWNER"), qcReportHandler.Reject)
 	qcReports.Delete("/:id", qcReportHandler.Delete)
+
+	// Finance Report routes (FINANCE, OWNER only)
+	financeReports := protected.Group("/finance-reports", middleware.RequireRoles("FINANCE", "OWNER"))
+	financeReports.Get("/:projectId", financeReportHandler.Get)
+	financeReports.Put("/:projectId", financeReportHandler.Upsert)
 
 	// Company settings (FINANCE, OWNER only)
 	companySettings := protected.Group("/company-settings")
